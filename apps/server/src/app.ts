@@ -36,6 +36,14 @@ function battleChoice(value: unknown): DemoBattleChoice | null {
   return candidate as DemoBattleChoice
 }
 
+function requestedUploadId(value: unknown): string | null {
+  if (value === undefined) return null
+  if (typeof value !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)) {
+    throw new ProductError('The save upload ID is invalid.', 400)
+  }
+  return value
+}
+
 type BuildAppOptions = {
   importSave?: typeof importFireRedSave
   productService?: LocalProductService | DurableProductService
@@ -169,12 +177,18 @@ export function buildApp(options: BuildAppOptions = {}) {
         if (!tournamentId) throw new ProductError('Choose a tournament before importing a team.', 400)
         await product.requireTournamentParticipant(user!.id, tournamentId)
       }
+      const requestedId = requestedUploadId(request.headers['x-upload-id'])
+      if (user && tournamentId && requestedId) {
+        const completed = await product.loadSaveImport(user.id, tournamentId, requestedId)
+        if (completed) return reply.header('cache-control', 'no-store').send(completed)
+      }
       const filename = validateSaveFilename(request.headers['x-file-name'])
       const bytes = validateSaveBytes(request.body)
-      const imported = await runSaveImport(bytes, filename)
+      const parsed = await runSaveImport(bytes, filename)
+      const imported = requestedId ? { ...parsed, uploadId: requestedId } : parsed
       teams.rememberImport(imported, user?.id ?? null, tournamentId)
       if (user) await product.persistSaveImport(user.id, tournamentId, imported)
-      return imported
+      return reply.header('cache-control', 'no-store').send(imported)
     } catch (error) {
       if (error instanceof SaveImportError) {
         return reply.code(error.statusCode).send({ error: error.message })
@@ -182,6 +196,17 @@ export function buildApp(options: BuildAppOptions = {}) {
       throw error
     }
   })
+
+  app.get<{ Params: { tournamentId: string; uploadId: string } }>(
+    '/api/tournaments/:tournamentId/save-imports/:uploadId',
+    async (request, reply) => {
+      const user = await currentUser(request)
+      await product.requireTournamentParticipant(user.id, request.params.tournamentId)
+      const imported = await product.loadSaveImport(user.id, request.params.tournamentId, request.params.uploadId)
+      if (!imported) return reply.code(404).header('cache-control', 'no-store').send({ error: 'The save import is still processing.' })
+      return reply.header('cache-control', 'no-store').send(imported)
+    },
+  )
 
   app.get('/api/team-registrations/current', async (_request, reply) => {
     const registration = teams.current()

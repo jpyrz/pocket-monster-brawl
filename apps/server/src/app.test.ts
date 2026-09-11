@@ -88,6 +88,11 @@ describe('application API', () => {
       headers: { cookie, 'content-type': 'application/octet-stream', 'x-file-name': 'Pokemon%20FireRed.sav', 'x-tournament-id': tournamentId },
       payload: Buffer.alloc(131_072),
     })
+    const recoveredImport = await app.inject({
+      method: 'GET', url: `/api/tournaments/${tournamentId}/save-imports/${imported.uploadId}`, headers: { cookie },
+    })
+    expect(recoveredImport.statusCode).toBe(200)
+    expect(recoveredImport.json()).toMatchObject({ uploadId: imported.uploadId, trainer: { name: 'RED' } })
     const saved = await app.inject({
       method: 'POST', url: `/api/tournaments/${tournamentId}/team-draft`, headers: { cookie },
       payload: { uploadId: imported.uploadId, pokemonFingerprints: [importedMankey.fingerprint] },
@@ -140,6 +145,7 @@ describe('application API', () => {
       rawSaveStored: false,
     }
     let receivedBytes = 0
+    const requestedUploadId = '1af862e0-789d-4c88-98be-b17bf02126e4'
     const app = buildApp({
       allowAnonymousPrototype: true,
       importSave: async (bytes, filename) => {
@@ -155,6 +161,7 @@ describe('application API', () => {
       headers: {
         'content-type': 'application/octet-stream',
         'x-file-name': encodeURIComponent('Pokemon FireRed.sav'),
+        'x-upload-id': requestedUploadId,
       },
       payload: Buffer.alloc(131_072),
     })
@@ -163,6 +170,7 @@ describe('application API', () => {
     expect(receivedBytes).toBe(131_072)
     expect(response.json<SaveImportView>()).toMatchObject({
       filename: 'Pokemon FireRed.sav',
+      uploadId: requestedUploadId,
       sourceDevice: 'Analogue Pocket',
       rawSaveStored: false,
     })

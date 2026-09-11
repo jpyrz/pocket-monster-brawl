@@ -63,6 +63,7 @@ export class LocalProductService {
   private invitations = new Map<string, InvitationRecord>()
   private tournaments = new Map<string, TournamentView>()
   private teamStatuses = new Map<string, 'not-started' | 'drafting' | 'submitted'>()
+  private saveImports = new Map<string, { userId: string; tournamentId: string | null; data: SaveImportView }>()
 
   async registerAccount(input: { username?: unknown; displayName?: unknown; password?: unknown }) {
     const username = this.validateUsername(input.username)
@@ -231,10 +232,15 @@ export class LocalProductService {
     this.teamStatuses.set(`${tournament.leagueId}:${userId}`, 'drafting')
   }
 
-  persistSaveImport(_userId: string, _tournamentId: string | null, _saveImport: SaveImportView) {}
+  persistSaveImport(userId: string, tournamentId: string | null, saveImport: SaveImportView) {
+    this.saveImports.set(saveImport.uploadId, { userId, tournamentId, data: structuredClone(saveImport) })
+  }
 
-  loadSaveImport(_userId: string, _tournamentId: string, _uploadId: string): SaveImportView | null {
-    return null
+  loadSaveImport(userId: string, tournamentId: string, uploadId: string): SaveImportView | null {
+    const saved = this.saveImports.get(uploadId)
+    return saved?.userId === userId && saved.tournamentId === tournamentId
+      ? structuredClone(saved.data)
+      : null
   }
 
   persistTeamDraft(_userId: string, _tournamentId: string, _draft: TeamDraftView) {}

@@ -7,6 +7,44 @@ const fireRedSaveSize = 128 * 1024
 
 type ImportStatus = 'idle' | 'ready' | 'importing' | 'success' | 'error'
 
+function createUploadId() {
+  if (typeof globalThis.crypto?.randomUUID === 'function') return globalThis.crypto.randomUUID()
+  const bytes = new Uint8Array(16)
+  if (typeof globalThis.crypto?.getRandomValues === 'function') globalThis.crypto.getRandomValues(bytes)
+  else for (let index = 0; index < bytes.length; index += 1) bytes[index] = Math.floor(Math.random() * 256)
+  bytes[6] = ((bytes[6] ?? 0) & 0x0f) | 0x40
+  bytes[8] = ((bytes[8] ?? 0) & 0x3f) | 0x80
+  const hex = [...bytes].map((byte) => byte.toString(16).padStart(2, '0')).join('')
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`
+}
+
+function wait(milliseconds: number) {
+  return new Promise<void>((resolve) => window.setTimeout(resolve, milliseconds))
+}
+
+async function importResponse(response: Response): Promise<SaveImportView> {
+  const body = await response.json() as SaveImportView | { error?: string }
+  if (!response.ok) {
+    throw new Error('error' in body && body.error ? body.error : 'The save could not be imported.')
+  }
+  return body as SaveImportView
+}
+
+async function recoverImport(tournamentId: string, uploadId: string): Promise<SaveImportView> {
+  await wait(750)
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    try {
+      const response = await fetch(`/api/tournaments/${tournamentId}/save-imports/${uploadId}`, { cache: 'no-store' })
+      if (response.ok) return importResponse(response)
+      if (response.status !== 404) return importResponse(response)
+    } catch {
+      // A transient mobile-network failure is retried until the overall import timeout wins.
+    }
+    await wait(500)
+  }
+  throw new Error('The save reached the server, but the completed import could not be retrieved. Try again.')
+}
+
 const statLabels: ReadonlyArray<[keyof StatBlock, string]> = [
   ['hp', 'HP'],
   ['attack', 'Atk'],
@@ -193,22 +231,34 @@ export function SaveImport({ tournament }: { tournament?: TournamentView }) {
 
     setStatus('importing')
     setError(null)
+    const uploadId = createUploadId()
+    const uploadController = new AbortController()
+    let timeoutId: number | undefined
     try {
-      const response = await fetch('/api/save-imports/fire-red', {
+      const bytes = await file.arrayBuffer()
+      if (bytes.byteLength !== fireRedSaveSize) throw new Error('The selected save changed before it could be uploaded. Choose it again.')
+      const uploadPromise = fetch('/api/save-imports/fire-red', {
         method: 'POST',
         headers: {
           'content-type': 'application/octet-stream',
           'x-file-name': encodeURIComponent(file.name),
+          'x-upload-id': uploadId,
           ...(tournament ? { 'x-tournament-id': tournament.id } : {}),
         },
-        body: file,
+        body: bytes,
+        cache: 'no-store',
+        signal: uploadController.signal,
+      }).then(importResponse)
+      const timeoutPromise = new Promise<SaveImportView>((_resolve, reject) => {
+        timeoutId = window.setTimeout(() => reject(new Error('The save import timed out. Check the Wi-Fi connection and try again.')), 15_000)
       })
-      const body = await response.json() as SaveImportView | { error?: string }
-      if (!response.ok) {
-        throw new Error('error' in body && body.error ? body.error : 'The save could not be imported.')
-      }
-      setResult(body as SaveImportView)
-      setSelection((body as SaveImportView).pokemon
+      const imported = await Promise.race([
+        uploadPromise,
+        ...(tournament ? [recoverImport(tournament.id, uploadId)] : []),
+        timeoutPromise,
+      ])
+      setResult(imported)
+      setSelection(imported.pokemon
         .filter((pokemon) => !pokemon.egg && pokemon.entityValid && pokemon.legalityValid && pokemon.moves.length > 0)
         .slice(0, teamLimit)
         .map((pokemon) => pokemon.fingerprint))
@@ -216,6 +266,9 @@ export function SaveImport({ tournament }: { tournament?: TournamentView }) {
     } catch (caught) {
       setStatus('error')
       setError(caught instanceof Error ? caught.message : 'The save could not be imported.')
+    } finally {
+      uploadController.abort()
+      if (timeoutId !== undefined) window.clearTimeout(timeoutId)
     }
   }
 
