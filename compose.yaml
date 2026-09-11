@@ -1,0 +1,56 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.app
+    environment:
+      DATABASE_URL: postgresql://pmb:pmb@postgres:5432/pmb
+      PARSER_URL: http://save-parser:3002
+      PORT: 3000
+      HOST: 0.0.0.0
+      WEB_DIST: /app/apps/web/dist
+      COOKIE_SECURE: "false"
+    ports:
+      - "${PMB_PORT:-3000}:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      save-parser:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+  save-parser:
+    build:
+      context: .
+      dockerfile: services/save-parser/Dockerfile
+    expose:
+      - "3002"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://127.0.0.1:3002/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_DB: pmb
+      POSTGRES_USER: pmb
+      POSTGRES_PASSWORD: pmb
+    volumes:
+      - pmb_postgres:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pmb -d pmb"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  pmb_postgres:

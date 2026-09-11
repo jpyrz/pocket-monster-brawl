@@ -1,0 +1,15 @@
+node_modules/
+.dotnet/
+.nuget/
+dist/
+bin/
+obj/
+.env
+.env.*
+!.env.example
+.DS_Store
+coverage/
+playwright-report/
+test-results/
+backups/
+*.log

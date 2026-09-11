@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; script-src 'self' https://play.pokemonshowdown.com; style-src 'self' 'unsafe-inline' https://play.pokemonshowdown.com; img-src 'self' data: http://play.pokemonshowdown.com http://*.pokemonshowdown.com https://play.pokemonshowdown.com https://*.pokemonshowdown.com; media-src http://play.pokemonshowdown.com http://*.pokemonshowdown.com https://play.pokemonshowdown.com https://*.pokemonshowdown.com; connect-src 'none'; font-src http://play.pokemonshowdown.com https://play.pokemonshowdown.com"
+    />
+    <title>Battle scene</title>
+    <link rel="stylesheet" href="https://play.pokemonshowdown.com/style/battle.css" />
+    <link rel="stylesheet" href="/showdown-scene.css" />
+  </head>
+  <body>
+    <div id="scene-stage">
+      <div class="battle"></div>
+      <div class="battle-log" aria-hidden="true"></div>
+    </div>
+    <div id="scene-error" role="status"></div>
+
+    <script src="https://play.pokemonshowdown.com/js/lib/ps-polyfill.js"></script>
+    <script src="https://play.pokemonshowdown.com/config/config.js"></script>
+    <script src="https://play.pokemonshowdown.com/js/lib/jquery-1.11.0.min.js"></script>
+    <script src="https://play.pokemonshowdown.com/js/lib/html-sanitizer-minified.js"></script>
+    <script src="https://play.pokemonshowdown.com/js/battle-sound.js"></script>
+    <script src="https://play.pokemonshowdown.com/js/battledata.js"></script>
+    <script src="https://play.pokemonshowdown.com/data/pokedex-mini.js"></script>
+    <script src="https://play.pokemonshowdown.com/data/pokedex-mini-bw.js"></script>
+    <script src="https://play.pokemonshowdown.com/data/graphics.js"></script>
+    <script src="https://play.pokemonshowdown.com/data/pokedex.js"></script>
+    <script src="https://play.pokemonshowdown.com/data/moves.js"></script>
+    <script src="https://play.pokemonshowdown.com/data/abilities.js"></script>
+    <script src="https://play.pokemonshowdown.com/data/items.js"></script>
+    <script src="https://play.pokemonshowdown.com/data/teambuilder-tables.js"></script>
+    <script src="https://play.pokemonshowdown.com/js/battle-tooltips.js"></script>
+    <script src="https://play.pokemonshowdown.com/js/battle.js"></script>
+    <script src="/showdown-scene.js"></script>
+  </body>
+</html>

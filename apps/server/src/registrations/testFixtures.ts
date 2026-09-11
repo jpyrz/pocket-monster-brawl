@@ -1,0 +1,31 @@
+import type { ImportedPokemon } from '@pmb/domain'
+
+export const importedMankey: ImportedPokemon = {
+  fingerprint: 'mankey-fingerprint',
+  source: { kind: 'party', box: null, boxName: null, slot: 1 },
+  speciesId: 56,
+  species: 'Mankey',
+  nickname: 'MANKEY',
+  level: 11,
+  gender: 'M',
+  shiny: false,
+  egg: false,
+  nature: 'Mild',
+  ability: 'Vital Spirit',
+  heldItem: null,
+  friendship: 114,
+  experience: 1_525,
+  moves: [
+    { slot: 1, id: 10, name: 'Scratch', pp: 35, ppUps: 0 },
+    { slot: 2, id: 43, name: 'Leer', pp: 30, ppUps: 0 },
+    { slot: 3, id: 67, name: 'Low Kick', pp: 20, ppUps: 0 },
+    { slot: 4, id: 2, name: 'Karate Chop', pp: 25, ppUps: 0 },
+  ],
+  stats: { hp: 32, attack: 25, defense: 13, specialAttack: 17, specialDefense: 15, speed: 22 },
+  storedStats: { hp: 32, attack: 25, defense: 13, specialAttack: 17, specialDefense: 15, speed: 22 },
+  ivs: { hp: 22, attack: 22, defense: 26, specialAttack: 30, specialDefense: 9, speed: 12 },
+  evs: { hp: 1, attack: 19, defense: 2, specialAttack: 1, specialDefense: 0, speed: 23 },
+  entityValid: true,
+  legalityValid: true,
+  legalityReport: null,
+}

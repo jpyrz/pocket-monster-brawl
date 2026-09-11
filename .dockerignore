@@ -1,0 +1,10 @@
+.git
+.env
+.pmb-data
+**/.pmb-data
+**/node_modules
+**/dist
+**/bin
+**/obj
+**/coverage
+*.log
