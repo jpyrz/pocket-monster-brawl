@@ -109,7 +109,7 @@ apps/web             React client and controller lab
 apps/server          Fastify API and Drizzle schema/migrations
 packages/domain      Shared profile, Pokemon, and skin contracts
 services/save-parser Loopback-only .NET/PKHeX FireRed parser
-compose.yaml         Local PostgreSQL service
+compose.yaml         Complete self-hosted LAN stack
 ```
 
 ## Next acceptance gates

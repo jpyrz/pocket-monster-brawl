@@ -215,19 +215,21 @@ Done when: an entire battle is playable with D-pad/A/B and also with direct touc
 
 Done when: a small test season progresses from registration through completed matches to correct standings, including a duplicate result delivery, tie, and organizer adjudication.
 
-### 6. Reconnect, recovery, and deployment
+### 6. Reconnect, recovery, and portable LAN release
 
 - Journal accepted decisions durably before acknowledging them. Save initial teams/rules/engine version/seed so a match can be reconstructed by replaying accepted commands under the same pinned engine.
 - Use sequence numbers and a fresh authorized state view for client reconnects. Socket.IO recovery is a convenience, not the database or recovery policy.
 - Define a configurable disconnect grace period and battle timer. For the pilot, unresolved recovery errors pause the match for organizer review rather than inventing a winner.
 - Test page reload, phone backgrounding, connection loss after a move, server restart, duplicate submissions, and a reconnect after the engine has advanced.
 - Add the installable PWA shell. Avoid caching authenticated responses or submitting moves offline; hold app updates until the player leaves an active match.
-- Deploy the static frontend, public Node/WebSocket service, private PKHeX parser, and managed PostgreSQL with HTTPS, private networking, health checks, backups, and a tested restore. Perform one remote two-player match over different networks.
+- Package the static frontend, Node/WebSocket service, private PKHeX parser, and PostgreSQL as the supported Docker Compose stack. Expose only the combined application port to the LAN; keep the parser and database on the private Docker network.
+- Test the documented clone-and-start flow on clean macOS, Windows, and Linux hosts with Docker Desktop or Docker Engine as the only prerequisite. Verify the printed LAN address from at least two phones on the same Wi-Fi.
+- Provide portable PostgreSQL backups and a tested restore procedure before the first real event. Stopping or upgrading the stack must retain the named data volume by default.
 - Verify that the parser has no public route, raw saves are absent from disks, logs, backups, and error reporting, and only normalized snapshots and fingerprints persist.
 - Restart and redeploy the application during a test match; reconnect both clients and reconstruct the battle from the durable decision journal.
 - Test upload and play on an iPhone, an Android browser, and the actual handheld/browser combinations. A handheld without a suitable browser remains a training device; that player battles from a phone or computer.
 
-Done when: a pilot group can register and complete remote matches, reconnect without lost choices, and recover from a service restart without corrupting standings. Only then begin the months-long training season.
+Done when: a pilot group can bring save files, register, and complete matches from their own phones on the host's Wi-Fi; reconnect without lost choices; and recover from a service restart without corrupting standings. A fresh host can reproduce the setup from the repository without installing the individual application runtimes. Only then begin the months-long training season.
 
 ## First playable milestone
 
