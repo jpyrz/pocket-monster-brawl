@@ -49,12 +49,22 @@ self-hosted LAN server. Players connect from phones or computers on the same Wi-
 The purple controller is a clearly labeled development fixture. It is not third-party Delta
 artwork and does not close the real-skin acceptance gate.
 
-## Run the LAN application
+## Quick start
 
-Only the host computer needs setup. Install Docker Desktop, clone this repository, and start
-the complete stack. Players do not install Node.js, .NET, PKHeX, or PostgreSQL.
+Only the host computer needs the repository and Docker. Everyone else joins from a browser on
+the same Wi-Fi.
 
-macOS or Linux:
+### 1. Install Docker
+
+Install the latest [Docker Desktop](https://www.docker.com/products/docker-desktop/) for your
+computer, open it, and wait until Docker reports that it is running. No paid account is needed
+for personal use.
+
+### 2. Start Pocket Monster Brawl
+
+Open a terminal in the pulled-down repository folder.
+
+macOS/Linux:
 
 ```bash
 bash start-lan.sh
@@ -66,23 +76,58 @@ Windows PowerShell:
 powershell -ExecutionPolicy Bypass -File .\start-lan.ps1
 ```
 
-The script builds and starts the browser app/API, private PKHeX parser, and PostgreSQL. It
-prints `http://localhost:3000` for the host and a LAN URL for phones on the same Wi-Fi. The
-first build downloads the Node, .NET, and PostgreSQL images and can take several minutes.
+The first start downloads and builds the required containers, so it can take several minutes.
+No separate Node.js, .NET, PKHeX, or PostgreSQL installation is required.
 
-Stop without deleting data:
+### 3. Open the app
+
+The launcher prints both addresses:
+
+- The host opens `http://localhost:3000`.
+- Other players open the printed LAN address, such as `http://192.168.1.50:3000`, while connected
+  to the host's Wi-Fi.
+
+Keep Docker running while the app is in use. Internet access is currently required for the
+Showdown battle artwork.
+
+## Starting, stopping, and updating
+
+Run the same start script whenever the app is stopped. To stop it without deleting data:
 
 ```bash
 docker compose down
 ```
 
-The `pmb_postgres` Docker volume retains application data. Do not add `--volumes` unless you
-intend to erase every account, league, tournament, and draft. The parser and database expose
-no host ports; only the combined web application is reachable from the LAN.
+To update an existing checkout:
+
+```bash
+git pull
+bash start-lan.sh
+```
+
+Windows users run `git pull` followed by the same PowerShell start command from step 2.
+
+Accounts, leagues, tournaments, and team drafts remain in the `pmb_postgres` Docker volume
+across restarts and rebuilds. **Do not run `docker compose down --volumes` unless you intend to
+erase all application data.**
+
+## Backup
 
 Create a portable PostgreSQL backup with `bash backup-lan.sh` on macOS/Linux or
 `.\backup-lan.ps1` in PowerShell. Backups are written under the ignored `backups` directory;
 copy them off the host computer before an important event.
+
+## Troubleshooting
+
+```bash
+docker compose ps        # all three services should be healthy
+docker compose logs app  # show application errors
+```
+
+If a phone cannot connect, confirm it is on the same Wi-Fi and use the current LAN address
+printed by the start script.
+
+## Source development
 
 For source development without containers, Node.js 24 and .NET 10 are still required. Start
 PostgreSQL separately, set `DATABASE_URL`, and run `npm install && npm run dev`.
