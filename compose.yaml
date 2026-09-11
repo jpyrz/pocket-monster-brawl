@@ -44,7 +44,7 @@ services:
       POSTGRES_USER: pmb
       POSTGRES_PASSWORD: pmb
     volumes:
-      - pmb_postgres:/var/lib/postgresql/data
+      - pmb_postgres:/var/lib/postgresql
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U pmb -d pmb"]
