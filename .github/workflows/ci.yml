@@ -36,3 +36,10 @@ jobs:
       - run: npm ci
       - run: npm run check
       - run: docker compose build
+      - run: docker compose up --detach --wait
+      - run: curl --fail --silent http://127.0.0.1:3000/api/health
+      - run: curl --fail --silent http://127.0.0.1:3000/ | grep --quiet "Pocket Monster Brawl"
+      - if: always()
+        run: docker compose logs
+      - if: always()
+        run: docker compose down --volumes
