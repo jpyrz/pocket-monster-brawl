@@ -309,6 +309,10 @@ export function SkinLab() {
             <span>{view?.playerName ?? 'Connecting'}</span>
             <strong>{isPlayingEvents ? 'RESOLVING' : view?.phase.toUpperCase() ?? 'LOADING'}</strong>
           </div>
+          <section className={styles.expandedBattleLog} aria-label="Recent battle log">
+            <header><strong>BATTLE LOG</strong><span>RECENT EVENTS</span></header>
+            <div>{view?.log.slice(-8).reverse().map((entry, index) => <p key={`${entry}-${index}`}>{entry}</p>)}</div>
+          </section>
           {menuOpen && (
             <div className={styles.systemMenu} role="dialog" aria-label="Controller menu">
               <p>{isMatch ? 'Tournament battle' : 'Live demo battle'}</p>
