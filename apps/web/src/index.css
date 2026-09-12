@@ -1,26 +1,49 @@
 :root {
-  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
-  color: #f7f5fb;
-  background: #120f17;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: #f5f3e8;
+  background: #0a0f16;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
-  --ink: #f7f5fb;
-  --muted: #aaa3b3;
-  --purple: #a879ff;
-  --purple-dark: #69429e;
-  --lime: #d9ff71;
-  --panel: #1b1722;
-  --line: rgba(255, 255, 255, 0.12);
+  --font-mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  --bg: #0a0f16;
+  --surface: #121b25;
+  --surface-raised: #192532;
+  --surface-soft: #202e3b;
+  --text: #f5f3e8;
+  --text-dim: #9eabb3;
+  --text-faint: #71808a;
+  --mint: #59e2b0;
+  --mint-dark: #237c65;
+  --cream: #f3edcf;
+  --yellow: #f6c85f;
+  --red: #ff6f6a;
+  --purple: #a98bff;
+  --border: #2c3a46;
+  --border-bright: #465a68;
+  --ink: var(--text);
+  --muted: var(--text-dim);
+  --lime: var(--mint);
+  --purple-dark: #44366f;
+  --panel: var(--surface);
+  --line: var(--border);
 }
 
 * { box-sizing: border-box; }
-html { scroll-behavior: smooth; }
-body { margin: 0; min-width: 320px; min-height: 100vh; }
-button, a, input { font: inherit; }
+html { min-height: 100%; scroll-behavior: smooth; background: var(--bg); }
+body { margin: 0; min-width: 320px; min-height: 100dvh; background: var(--bg); overscroll-behavior-y: none; }
+button, a, input, select { font: inherit; }
 button { color: inherit; }
 a { color: inherit; }
-button:focus-visible, a:focus-visible, input:focus-visible { outline: 3px solid var(--lime); outline-offset: 3px; }
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid var(--mint); outline-offset: 3px; }
+button:disabled { cursor: not-allowed; opacity: .55; }
+::selection { color: #071711; background: var(--mint); }
+
+@media (display-mode: standalone) {
+  html, body, #root { min-height: 100dvh; }
+  body { user-select: none; -webkit-user-select: none; }
+  input, select, textarea { user-select: text; -webkit-user-select: text; }
+}
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; }

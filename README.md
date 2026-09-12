@@ -12,6 +12,8 @@ self-hosted LAN server. Players connect from phones or computers on the same Wi-
 ## What works now
 
 - Mobile-first React/Vite shell with an immersive, full-viewport controller battle mode.
+- Installable mobile app shell with a web manifest, iOS Home Screen metadata, safe-area
+  layout, app icons, and static-only service-worker caching when served from a secure origin.
 - Restart-safe local account creation/sign-in with scrypt-hashed passwords and HTTP-only sessions.
 - Persistent-product UI for league creation, username lookup/invitations, joining, member
   rosters, admin tournament setup, and private per-tournament team preparation.
@@ -95,6 +97,12 @@ The launcher prints both addresses:
 Keep Docker running while the app is in use. Internet access is currently required for the
 Showdown battle artwork.
 
+On iPhone, open the LAN address in Safari, use **Share → Add to Home Screen**, and launch
+Pocket Monster Brawl from its icon. If an older shortcut was installed before PWA support,
+delete it and add it again. The standalone Home Screen layout works over the LAN address;
+service-worker caching requires HTTPS and is therefore unavailable on the current plain-HTTP
+phone connection.
+
 ## Starting, stopping, and updating
 
 Run the same start script whenever the app is stopped. To stop it without deleting data:
@@ -177,5 +185,5 @@ The renderer spike currently loads the official client assets from
 third-party art/license review are required before a production release. See
 `THIRD_PARTY_NOTICES.md` for the current integration boundary.
 
-The PWA service worker, LAN discovery/QR screen, sockets, multi-player brackets, and packaged
-desktop installer remain unfinished. The Docker Compose stack is the current supported runtime.
+LAN discovery/QR setup, sockets, multi-player brackets, local HTTPS, and a packaged desktop
+installer remain unfinished. The Docker Compose stack is the current supported runtime.

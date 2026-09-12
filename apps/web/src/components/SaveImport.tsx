@@ -120,19 +120,18 @@ function PokemonCard({
         </div>
       </div>
 
-      <div className={styles.moves} aria-label={`${displayName}'s moves`}>
-        {pokemon.moves.map((move) => (
-          <div key={move.slot}>
-            <strong>{move.name}</strong>
-            <span>PP {move.pp}{move.ppUps > 0 ? ` · +${move.ppUps}` : ''}</span>
-          </div>
-        ))}
-        {pokemon.moves.length === 0 && <p>No moves found</p>}
-      </div>
-
-      <details className={styles.trainingDetails}>
-        <summary>Stats and training values</summary>
-        <div>
+      <details className={styles.pokemonDetails}>
+        <summary>Moves and training</summary>
+        <div className={styles.moves} aria-label={`${displayName}'s moves`}>
+          {pokemon.moves.map((move) => (
+            <div key={move.slot}>
+              <strong>{move.name}</strong>
+              <span>PP {move.pp}{move.ppUps > 0 ? ` · +${move.ppUps}` : ''}</span>
+            </div>
+          ))}
+          {pokemon.moves.length === 0 && <p>No moves found</p>}
+        </div>
+        <div className={styles.trainingDetails}>
           <StatRow label="Stats" stats={pokemon.stats} />
           <StatRow label="IVs" stats={pokemon.ivs} />
           <StatRow label="EVs" stats={pokemon.evs} />
@@ -347,11 +346,10 @@ export function SaveImport({ tournament }: { tournament?: TournamentView }) {
     <main className={styles.page}>
       <section className={styles.intro}>
         <div>
-          <p className={styles.eyebrow}>{tournament ? `${tournament.name} · private team room` : 'Team intake · FireRed pilot'}</p>
-          <h1>Open your save.<br />Meet your team.</h1>
+          <p className={styles.eyebrow}>{tournament?.name ?? 'FireRed pilot'}</p>
+          <h1>Team setup</h1>
           <p>
-            Select the raw 128 KiB <code>.sav</code> file from your Analogue Pocket. PKHeX
-            reads the party and PC boxes locally; your original file is never changed.
+            Load the raw 128 KiB <code>.sav</code> file from your Analogue Pocket.
           </p>
         </div>
 
@@ -391,7 +389,7 @@ export function SaveImport({ tournament }: { tournament?: TournamentView }) {
         <section className={styles.results} aria-live="polite">
           <div className={styles.resultHeader}>
             <div>
-              <p className={styles.eyebrow}>Import complete</p>
+              <p className={styles.eyebrow}>Save loaded</p>
               <h2>{result.pokemon.length} Pokémon found</h2>
               <p>{counts.party} in party · {counts.boxes} in PC boxes</p>
             </div>

@@ -1,6 +1,6 @@
 # Pocket Monster Brawl — private leagues and cartridge-powered tournaments
 
-Status: active implementation plan, updated September 11, 2026. The self-hosted LAN build includes account/session flows, league creation, username invitations, membership, tournament setup, private tournament team drafts, immutable team locks, PostgreSQL-backed normalized save snapshots, the real FireRed/PKHeX import path, an explicit Showdown team adapter, and an authenticated two-player Showdown series with journaled decisions, restart reconstruction, scores, and results. Docker Compose is the verified runtime. Realtime sockets, multi-player bracket execution, LAN discovery, and packaged releases are not complete.
+Status: active implementation plan, updated September 11, 2026. The self-hosted LAN build includes a mobile-first installable app shell, account/session flows, league creation, username invitations, membership, tournament setup, private tournament team drafts, immutable team locks, PostgreSQL-backed normalized save snapshots, the real FireRed/PKHeX import path, an explicit Showdown team adapter, and an authenticated two-player Showdown series with journaled decisions, restart reconstruction, scores, and results. Docker Compose is the verified runtime. Local HTTPS, realtime sockets, multi-player bracket execution, LAN discovery, and packaged releases are not complete.
 
 ## Product and scope
 
@@ -221,7 +221,7 @@ Done when: a small test season progresses from registration through completed ma
 - Use sequence numbers and a fresh authorized state view for client reconnects. Socket.IO recovery is a convenience, not the database or recovery policy.
 - Define a configurable disconnect grace period and battle timer. For the pilot, unresolved recovery errors pause the match for organizer review rather than inventing a winner.
 - Test page reload, phone backgrounding, connection loss after a move, server restart, duplicate submissions, and a reconnect after the engine has advanced.
-- Add the installable PWA shell. Avoid caching authenticated responses or submitting moves offline; hold app updates until the player leaves an active match.
+- Verify the installable PWA shell on target iPhones. Authenticated API responses and battle commands stay network-only; local HTTPS is still required before service-worker caching works on LAN clients.
 - Package the static frontend, Node/WebSocket service, private PKHeX parser, and PostgreSQL as the supported Docker Compose stack. Expose only the combined application port to the LAN; keep the parser and database on the private Docker network.
 - Test the documented clone-and-start flow on clean macOS, Windows, and Linux hosts with Docker Desktop or Docker Engine as the only prerequisite. Verify the printed LAN address from at least two phones on the same Wi-Fi.
 - Provide portable PostgreSQL backups and a tested restore procedure before the first real event. Stopping or upgrading the stack must retain the named data volume by default.
