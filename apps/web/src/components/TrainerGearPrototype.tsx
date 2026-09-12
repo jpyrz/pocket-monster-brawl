@@ -19,7 +19,7 @@ export function TrainerGearPrototype() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [menuSelection, setMenuSelection] = useState(0)
   const [helpOpen, setHelpOpen] = useState(false)
-  const [message, setMessage] = useState('A tournament match is waiting. Check the board when you are ready.')
+  const [message, setMessage] = useState('')
   const selectionCount = screen === 'link' || screen === 'team' ? 3 : screen === 'card' ? 2 : 1
 
   function selectMode(mode: GearMode) {
@@ -27,13 +27,7 @@ export function TrainerGearPrototype() {
     setSelection(0)
     setMenuOpen(false)
     setHelpOpen(false)
-    setMessage(mode === 'link'
-      ? 'A tournament match is waiting. Check the board when you are ready.'
-      : mode === 'team'
-        ? 'Your registered team is locked for the Indigo Cup.'
-        : mode === 'cup'
-          ? 'Both trainers are ready. Open the match menu to begin.'
-          : 'Your Trainer Card is visible to Link Club members.')
+    setMessage('')
   }
 
   function cycleMode(direction: -1 | 1) {
@@ -99,7 +93,7 @@ export function TrainerGearPrototype() {
     <main className={styles.prototype}>
       <section className={`${styles.gear} ${screen === 'continue' ? styles.bootGear : ''}`} aria-label="Trainer Gear controller prototype">
         <header className={styles.hardwareTop}>
-          <strong>PMB</strong><span>TRAINER GEAR / 02</span><i aria-label="Link connected" />
+          <span>TRAINER GEAR / 02</span><i aria-label="Link connected" />
         </header>
 
         {screen !== 'continue' && (
@@ -145,12 +139,10 @@ function ContinueScreen({ onContinue }: { onContinue: () => void }) {
       <div className={styles.bootMark} aria-hidden="true"><span /></div>
       <p className={styles.eyebrow}>Pocket Monster Brawl</p>
       <h1>TRAINER<br />GEAR</h1>
-      <p className={styles.version}>SYSTEM 0.2 · CONTROLLER READY</p>
       <button className={styles.saveFile} onClick={onContinue} type="button">
         <span className={styles.cursor} aria-hidden="true">▶</span><img alt="Pikachu" src={pikachuSprite} />
         <span className={styles.saveDetails}><small>CONTINUE</small><strong>JAMES</strong><span>Indigo Cup · Team locked</span></span><b>›</b>
       </button>
-      <p className={styles.controlHint}>PRESS A OR TAP THE SAVE FILE</p>
     </div>
   )
 }
@@ -166,13 +158,12 @@ function LinkScreen({ selection, message, onActivate }: ScreenProps) {
   ] as const
   return (
     <div className={styles.screenPage}>
-      <header className={styles.screenTitle}><span>LINK</span><strong>INDIGO CLUB</strong><small>2 ONLINE</small></header>
       <section className={styles.linkHero}>
         <div className={styles.partnerPane}><span className={styles.levelTag}>PARTNER</span><img alt="Pikachu" src={pikachuSprite} /><strong>PIKACHU</strong><small>TEAM 01</small></div>
         <div className={styles.clubPane}><small>CURRENT LEAGUE</small><h2>INDIGO<br />LINK CLUB</h2><dl><div><dt>TRAINERS</dt><dd>2 / 8</dd></div><div><dt>YOUR ROLE</dt><dd>ADMIN</dd></div><div><dt>LINK</dt><dd className={styles.online}>ONLINE</dd></div></dl></div>
       </section>
       <MenuRows onActivate={onActivate} rows={rows} selection={selection} />
-      <p className={styles.messageBox}>{message}</p>
+      {message && <p className={styles.messageBox}>{message}</p>}
     </div>
   )
 }
@@ -185,13 +176,12 @@ function TeamScreen({ selection, message, onActivate }: ScreenProps) {
   ] as const
   return (
     <div className={styles.screenPage}>
-      <header className={styles.screenTitle}><span>TEAM</span><strong>INDIGO CUP</strong><small>6 LOCKED</small></header>
       <section className={styles.teamPreview}>
         <header><span>TEAM 01</span><strong>REGISTERED</strong><small>PRIVATE</small></header>
         <div>{teamSprites.map((pokemon, index) => <span key={pokemon}><img alt={pokemon} src={`https://play.pokemonshowdown.com/sprites/gen5/${pokemon}.png`} /><small>{index + 1}</small></span>)}</div>
       </section>
       <MenuRows onActivate={onActivate} rows={rows} selection={selection} />
-      <p className={styles.messageBox}>{message}</p>
+      {message && <p className={styles.messageBox}>{message}</p>}
     </div>
   )
 }
@@ -200,7 +190,6 @@ function CupScreen({ menuOpen, menuSelection, message, onActivate, onMenuActivat
   const menuItems = ['Begin battle', 'View teams', 'Match rules', 'Cancel']
   return (
     <div className={styles.screenPage}>
-      <header className={styles.screenTitle}><span>CUP</span><strong>INDIGO CUP</strong><small>ROUND 1</small></header>
       <section className={styles.matchPanel}>
         <div className={styles.roundLabel}><span>01</span><strong>NEXT MATCH</strong><small>BEST OF 3</small></div>
         <div className={styles.versus}><div><i className={styles.trainerBall} /><strong>JAMES</strong><small>READY</small></div><b>VS</b><div><i className={styles.trainerBall} /><strong>GRUNDY</strong><small>READY</small></div></div>
@@ -211,7 +200,7 @@ function CupScreen({ menuOpen, menuSelection, message, onActivate, onMenuActivat
         <div className={styles.bracketLine}><div><span>01</span><strong>JAMES</strong><small>TEAM LOCKED</small></div><i /><div><span>02</span><strong>GRUNDY</strong><small>TEAM LOCKED</small></div></div>
         <div className={styles.championSlot}><span>★</span><small>CHAMPION</small><strong>— — —</strong></div>
       </section>
-      <p className={styles.messageBox}>{message}</p>
+      {message && <p className={styles.messageBox}>{message}</p>}
       {menuOpen && (
         <div className={styles.menuShade} role="presentation">
           <section className={styles.contextMenu} aria-label="Match menu">
@@ -228,10 +217,9 @@ function CardScreen({ selection, message, onActivate }: ScreenProps) {
   const rows = [['LEAGUE RECORD', '0 wins · 0 losses', '›'], ['SYSTEM SETTINGS', 'Sound · Haptics · Theme', '›']] as const
   return (
     <div className={styles.screenPage}>
-      <header className={styles.screenTitle}><span>CARD</span><strong>TRAINER ID</strong><small>LOCAL</small></header>
       <section className={styles.trainerCard}><span>J</span><div><small>TRAINER</small><h2>JAMES</h2><p>@jamespyrz</p></div><b>PMB</b></section>
       <MenuRows onActivate={onActivate} rows={rows} selection={selection} />
-      <p className={styles.messageBox}>{message}</p>
+      {message && <p className={styles.messageBox}>{message}</p>}
     </div>
   )
 }
@@ -255,9 +243,8 @@ function ControllerDeck({ canCycle, onA, onB, onDown, onLeft, onRight, onSelect,
   return (
     <footer className={styles.controllerDeck} aria-label="Trainer Gear controls">
       <div className={styles.shoulders}>
-        <button disabled={!canCycle} onClick={onShoulderLeft} type="button"><b>L</b><span>Previous mode</span></button>
-        <small>L / R MODE SELECT</small>
-        <button disabled={!canCycle} onClick={onShoulderRight} type="button"><span>Next mode</span><b>R</b></button>
+        <button aria-label="Previous mode" disabled={!canCycle} onClick={onShoulderLeft} type="button"><b>L</b></button>
+        <button aria-label="Next mode" disabled={!canCycle} onClick={onShoulderRight} type="button"><b>R</b></button>
       </div>
       <div className={styles.controlBody}>
         <div className={styles.dpad} aria-label="Menu direction pad">
@@ -270,8 +257,8 @@ function ControllerDeck({ canCycle, onA, onB, onDown, onLeft, onRight, onSelect,
           <button onClick={onSelect} type="button"><i />SELECT</button><button onClick={onStart} type="button"><i />START</button>
         </div>
         <div className={styles.faceButtons}>
-          <button aria-label="Back" onClick={onB} type="button"><b>B</b><small>BACK</small></button>
-          <button aria-label="Confirm selection" onClick={onA} type="button"><b>A</b><small>OK</small></button>
+          <button aria-label="Back" onClick={onB} type="button"><b>B</b></button>
+          <button aria-label="Confirm selection" onClick={onA} type="button"><b>A</b></button>
         </div>
       </div>
     </footer>
