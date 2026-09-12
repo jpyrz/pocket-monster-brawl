@@ -201,6 +201,8 @@ export function SkinLab() {
   }, [handleControl])
 
   const statusMessage = choice.error?.message ?? reset.error?.message ?? view?.error
+  const activePokemon = view?.team.find((pokemon) => pokemon.active)
+  const focusedMove = showingMoves ? view?.moves[focusedItem] : undefined
 
   return (
     <TrainerGearShell
@@ -227,7 +229,8 @@ export function SkinLab() {
 
                 {!isPlayingEvents && (showingParty ? (
                   <div className={`${styles.choicePanel} ${styles.partyPanel} ${view.phase === 'switch' ? styles.forcedPanel : ''}`} aria-label="Choose a Pokémon">
-                    <p>Choose a Pokémon</p>
+                    <header><strong>POKÉMON</strong><span>Choose a teammate</span></header>
+                    <div className={styles.partyGrid}>
                     {availableTeam.map((pokemon, index) => (
                       <button
                         className={index === focusedItem ? styles.focusedChoice : undefined}
@@ -240,46 +243,57 @@ export function SkinLab() {
                         <span>{pokemon.hp}/{pokemon.maxHp} HP</span>
                       </button>
                     ))}
+                    </div>
                   </div>
                 ) : showingMoves ? (
                   <div className={`${styles.choicePanel} ${styles.movePanel}`} aria-label="Choose a move">
-                    <p>Choose a move</p>
-                    {view.moves.map((move, index) => (
-                      <button
-                        className={index === focusedItem ? styles.focusedChoice : undefined}
-                        data-type={move.type.toLowerCase()}
-                        disabled={move.disabled || choice.isPending || isPlayingEvents || view.phase !== 'move'}
-                        key={move.id}
-                        onClick={() => { setFocusedItem(index); submitChoice({ type: 'move', slot: move.slot }); setLastInput('touch') }}
-                        type="button"
-                      >
-                        <strong>{move.name}</strong>
-                        <span>{move.type} · {move.pp ?? '—'}/{move.maxPp ?? '—'} PP</span>
-                      </button>
-                    ))}
+                    <header><strong>MOVE</strong><span>Choose an attack</span></header>
+                    <div className={styles.moveGrid}>
+                      {view.moves.map((move, index) => (
+                        <button
+                          className={index === focusedItem ? styles.focusedChoice : undefined}
+                          data-type={move.type.toLowerCase()}
+                          disabled={move.disabled || choice.isPending || isPlayingEvents || view.phase !== 'move'}
+                          key={move.id}
+                          onClick={() => { setFocusedItem(index); submitChoice({ type: 'move', slot: move.slot }); setLastInput('touch') }}
+                          type="button"
+                        >
+                          <strong>{move.name}</strong>
+                          <span>{move.type}</span>
+                        </button>
+                      ))}
+                    </div>
+                    <aside className={styles.moveReadout}>
+                      <small>PP</small>
+                      <strong>{focusedMove?.pp ?? '—'}/{focusedMove?.maxPp ?? '—'}</strong>
+                      <em data-type={focusedMove?.type.toLowerCase()}>{focusedMove?.type ?? '—'}</em>
+                    </aside>
                   </div>
                 ) : null)}
 
-                {!isPlayingEvents && view.phase === 'move' && (
-                  <div className={styles.commandRail} aria-label="Battle commands">
+                {!isPlayingEvents && view.phase === 'move' && choicePanel === 'commands' && (
+                  <div className={styles.commandPanel} aria-label="Battle commands">
+                    <p><span>What will</span><strong>{activePokemon?.name ?? view.playerName}</strong><span>do?</span></p>
+                    <div>
                     <button
-                      aria-pressed={choicePanel === 'moves'}
-                      className={choicePanel === 'commands' && focusedItem === 0 ? styles.focusedChoice : undefined}
+                      className={focusedItem === 0 ? styles.focusedChoice : undefined}
                       onClick={() => { setChoicePanel('moves'); setFocusedItem(0); setLastInput('touch') }}
                       type="button"
                     >
-                      <strong>Fight</strong><span>Moves</span>
+                      <strong>FIGHT</strong><span>Moves</span>
                     </button>
                     <button
-                      aria-pressed={choicePanel === 'party'}
-                      className={choicePanel === 'commands' && focusedItem === 1 ? styles.focusedChoice : undefined}
+                      className={focusedItem === 1 ? styles.focusedChoice : undefined}
                       onClick={() => { setChoicePanel('party'); setFocusedItem(0); setLastInput('touch') }}
                       type="button"
                     >
-                      <strong>Pokémon</strong><span>Team</span>
+                      <strong>POKÉMON</strong><span>Team</span>
                     </button>
+                    </div>
                   </div>
                 )}
+
+                {isPlayingEvents && <div className={styles.dialoguePanel}>{activeEvent?.message ?? view.log.at(-1) ?? 'The battle continues…'}</div>}
 
                 {!isPlayingEvents && (view.phase === 'waiting' || view.phase === 'ended') && (
                   <div className={styles.battleMessage}>
