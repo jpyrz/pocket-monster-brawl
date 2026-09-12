@@ -28,11 +28,18 @@ export default defineConfig({
       },
       workbox: {
         navigateFallbackDenylist: [/^\/api\//],
-        runtimeCaching: [{
-          urlPattern: ({ url }) => url.pathname.startsWith('/api/'),
-          handler: 'NetworkOnly',
-          method: 'GET',
-        }],
+        runtimeCaching: [
+          {
+            urlPattern: ({ url }) => url.pathname.startsWith('/api/'),
+            handler: 'NetworkOnly',
+            method: 'GET',
+          },
+          {
+            urlPattern: ({ url }) => url.pathname.startsWith('/api/'),
+            handler: 'NetworkOnly',
+            method: 'POST',
+          },
+        ],
       },
     }),
   ],
