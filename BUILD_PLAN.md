@@ -1,6 +1,6 @@
 # Pocket Monster Brawl — private leagues and cartridge-powered tournaments
 
-Status: active implementation plan, updated September 11, 2026. The self-hosted LAN build includes a mobile-first installable app shell, account/session flows, league creation, username invitations, membership, tournament setup, private tournament team drafts, immutable team locks, PostgreSQL-backed normalized save snapshots, the real FireRed/PKHeX import path, an explicit Showdown team adapter, and an authenticated two-player Showdown series with journaled decisions, restart reconstruction, scores, and results. Docker Compose is the verified runtime. Local HTTPS, realtime sockets, multi-player bracket execution, LAN discovery, and packaged releases are not complete.
+Status: active implementation plan, updated September 12, 2026. The self-hosted LAN build includes a mobile-first installable Trainer Gear interface, account/session flows, league creation, username invitations, membership, tournament setup, private tournament team drafts, immutable team locks, PostgreSQL-backed normalized save snapshots, the real FireRed/PKHeX import path, an explicit Showdown team adapter, and an authenticated two-player Showdown series with journaled decisions, restart reconstruction, scores, and results. Docker Compose is the verified runtime. Local HTTPS, realtime sockets, multi-player bracket execution, LAN discovery, and packaged releases are not complete.
 
 ## Product and scope
 
@@ -17,12 +17,12 @@ Friends create accounts and join a persistent private **league**. A league owns 
 7. The server seeds a single-elimination bracket, assigns opponents, and runs each best-of match series using the frozen teams and rules. Players only receive battle information they are allowed to see.
 8. Each finished series advances its winner transactionally. The final series winner becomes the tournament champion; the league retains the event, bracket, and match history for future visits.
 
-The battle UI follows the supplied Delta reference: portrait layout, large battle screen above a controller area, working D-pad and A/B controls, and Menu/Select/Start controls where useful. Prefer importing compatible custom `.deltaskin` artwork and layout metadata through a skin adapter. The purple skin is an initial visual preference, not a fixed application design. It is a browser interface, not an emulator. Desktop and wider layouts must also remain usable.
+The whole product uses one portrait Trainer Gear interface: a red, cream, black, and yellow handheld frame with a large screen above working D-pad and A/B controls. LINK, TEAM, CUP, and CARD organize the application; L/R changes modes, direct touch remains available, and the controls can collapse. The live Showdown battle replaces the app content inside the same device instead of switching to a separate controller skin. It is a browser interface, not an emulator. Desktop and wider layouts remain usable.
 
 Confirmed requirements:
 
 - Season-configurable training games and generation-specific battle rules; FireRed with Gen 3 mechanics is the first supported profile.
-- Controller skins are separate from battle rules and save parsing. Reuse compatible custom Delta skins rather than requiring each shell to be drawn in CSS.
+- The Trainer Gear shell is separate from battle rules and save parsing. Later color themes may change its presentation without changing application or match behavior.
 - Preserve actual species/form, level, IVs, EVs, nature, ability, moves, held item, friendship, gender, nickname, and shiny status when mapping into the battle engine.
 - Players manually choose moves and switches during live matches.
 - Start battles fully healed with Showdown's default maximum move PP. The user accepts this normalization; it must be disclosed when registering a team.
@@ -193,16 +193,16 @@ Done when: two separate browser sessions complete a manual battle with the right
 
 Done when: a player uploads their own save, registers a team, and later joins a match that uses that exact registered version. A second player cannot access or register the first player's private save.
 
-### 4. Build the Delta-style battle experience
+### 4. Build the Trainer Gear battle experience
 
-- Integrate the tested Delta skin adapter and skin picker, initially with a compatible purple GBA-style skin. Place the custom battle display in the declared screen region; retain a plain accessible fallback.
+- Use the same red Trainer Gear frame, proportions, safe-area handling, collapse preference, and physical controls across league workflows and live battles.
 - Use one selection model for taps, D-pad, keyboard, and A/B so inputs remain consistent. Add hardware gamepad mapping only after testing on actual devices.
-- D-pad moves focus; A selects/confirms; B backs out before submission; Menu opens navigation with protection against accidentally abandoning a match. Assign Start/Select/L/R only where they have a useful, visible function.
+- D-pad moves focus; A selects/confirms; B backs out before submission; Select opens the battle menu and Start opens the party during a battle. In application screens, L/R changes mode, Start opens LINK, and Select opens invitations.
 - Render Pokemon, health bars, status indicators, turn text, and lightweight attack/faint animations. Evaluate reuse of Showdown's rendering code in a time-boxed spike; do not make completion depend on extracting it successfully. A simpler custom renderer is the fallback.
 - Treat simulator events as authoritative and animation as presentation. Reconnect and replay must not depend on completing an animation.
 - Respect phone safe areas, portrait and landscape, touch target sizes, reduced motion, and mute controls. Support direct tapping even with controller buttons visible.
 
-Done when: an entire battle is playable with D-pad/A/B and also with direct touch, at phone and desktop sizes, with readable menus and no overlapping controls. Switching compatible skins preserves battle state and input behavior; mismatched or unsupported layouts fail clearly.
+Done when: an entire battle is playable with D-pad/A/B and also with direct touch, at phone and desktop sizes, with readable menus and no overlapping controls. Collapsing or restoring the controls preserves battle state and all direct-touch actions.
 
 ### 5. Add the season and standings
 

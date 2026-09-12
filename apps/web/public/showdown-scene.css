@@ -8,11 +8,11 @@ html, body {
 
 #scene-stage {
   position: absolute;
-  left: 50%;
-  top: 50%;
+  left: 0;
+  top: 0;
   width: 640px;
   height: 360px;
-  transform-origin: center;
+  transform-origin: top left;
 }
 
 .battle {

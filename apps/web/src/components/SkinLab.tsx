@@ -1,33 +1,22 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import {
-  fixtureSkin,
   type BattleEventView,
   type DemoBattleChoice,
   type DemoBattleView,
   type DemoPlayerId,
   type LogicalControl,
-  type SkinRect,
 } from '@pmb/domain'
 import { linearMenuFocus, moveGridFocus } from './battleSelection'
 import { createClientUuid } from './clientUuid'
 import { ShowdownBattleScene } from './ShowdownBattleScene'
+import { TrainerGearShell } from './TrainerGearShell'
 import styles from './SkinLab.module.scss'
 
 const keyboardControls: Record<string, LogicalControl> = {
   ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right',
   Enter: 'confirm', ' ': 'confirm', Escape: 'back', Backspace: 'back',
-}
-
-function rectStyle(rect: SkinRect): CSSProperties {
-  const { width, height } = fixtureSkin.mappingSize
-  return {
-    '--x': `${(rect.x / width) * 100}%`,
-    '--y': `${(rect.y / height) * 100}%`,
-    '--w': `${(rect.width / width) * 100}%`,
-    '--h': `${(rect.height / height) * 100}%`,
-  } as CSSProperties
 }
 
 async function readBattle(player: DemoPlayerId, matchId?: string): Promise<DemoBattleView> {
@@ -86,7 +75,7 @@ export function SkinLab() {
   })
   const [focusedItem, setFocusedItem] = useState(0)
   const [choicePanel, setChoicePanel] = useState<'commands' | 'moves' | 'party'>('commands')
-  const [lastInput, setLastInput] = useState('Ready')
+  const [, setLastInput] = useState('Ready')
   const [menuOpen, setMenuOpen] = useState(false)
   const view = battle.data
   const player = view?.player ?? routePlayer
@@ -214,27 +203,22 @@ export function SkinLab() {
   const statusMessage = choice.error?.message ?? reset.error?.message ?? view?.error
 
   return (
-    <main className={styles.lab}>
-      <section className={styles.intro}>
-        <p className={styles.eyebrow}>{isMatch ? 'Tournament match' : 'Live integration spike'}</p>
-        <h1>{isMatch ? 'Your team. Your side.' : 'One battle. Every input.'}</h1>
-        <p>
-          {isMatch
-            ? 'This is your authenticated side of a server-owned Generation III battle. Your opponent has their own private view.'
-            : 'This controller drives a server-owned Generation III Pokémon Showdown battle. Open a second tab as Blue to answer Red’s choices.'}
-        </p>
-        <div className={styles.disclosure}>
-          <strong>{view?.teamSource === 'registered-save' ? 'Registered save team loaded.' : 'Real engine, fixture teams.'}</strong>{' '}
-          {view?.teamSource === 'registered-save'
-            ? 'Your selected Pokémon keep their source level, moves, ability, nature, IVs, EVs, friendship, and held items.'
-            : 'Import and lock a FireRed team to replace Red’s fixture roster.'}
-        </div>
-      </section>
-
-      <section className={styles.demo} aria-label="Live controller battle demonstration">
-        <div className={styles.device} style={{ aspectRatio: `${fixtureSkin.mappingSize.width} / ${fixtureSkin.mappingSize.height}` }}>
-          <div className={styles.topPanel} aria-hidden="true" />
-          <div className={styles.screen} style={rectStyle(fixtureSkin.screen)}>
+    <TrainerGearShell
+      battle
+      controls={{
+        up: () => handleControl('up'),
+        down: () => handleControl('down'),
+        left: () => handleControl('left'),
+        right: () => handleControl('right'),
+        confirm: () => handleControl('confirm'),
+        back: () => handleControl('back'),
+        start: () => handleControl('start'),
+        select: () => handleControl('menu'),
+      }}
+      showTabs={false}
+    >
+      <section className={styles.battleViewport} aria-label="Live battle">
+          <div className={styles.screen}>
             {!view ? (
               <div className={styles.battleMessage}>{battle.isError ? battle.error.message : 'Connecting to battle…'}</div>
             ) : (
@@ -307,23 +291,10 @@ export function SkinLab() {
               </>
             )}
           </div>
-
-          <div className={styles.shoulderStrip} aria-hidden="true">
-            <span>L</span><strong>PM BRAWL</strong><span>R</span>
+          <div className={styles.battleStatus} aria-live="polite">
+            <span>{view?.playerName ?? 'Connecting'}</span>
+            <strong>{isPlayingEvents ? 'RESOLVING' : view?.phase.toUpperCase() ?? 'LOADING'}</strong>
           </div>
-          <div className={styles.fixtureLabel}>SHOWDOWN {view?.engineVersion ?? 'CONNECTING'} · {isPlayingEvents ? 'RESOLVING' : view?.phase.toUpperCase() ?? 'LOADING'}</div>
-          {fixtureSkin.controls.map((control) => (
-            <button
-              aria-label={control.label}
-              className={`${styles.control} ${styles[`control_${control.action}`] ?? ''}`}
-              key={control.action}
-              onClick={() => handleControl(control.action)}
-              style={rectStyle(control.rect)}
-              type="button"
-            >
-              {control.label}
-            </button>
-          ))}
           {menuOpen && (
             <div className={styles.systemMenu} role="dialog" aria-label="Controller menu">
               <p>{isMatch ? 'Tournament battle' : 'Live demo battle'}</p>
@@ -337,16 +308,7 @@ export function SkinLab() {
               <button type="button" onClick={() => setMenuOpen(false)}>Resume</button>
             </div>
           )}
-        </div>
-
-        <aside className={styles.readout} aria-live="polite">
-          <p><span>Player</span><strong>{view?.playerName ?? 'Connecting'}</strong></p>
-          <p><span>Battle state</span><strong>{view?.phase ?? battle.status}</strong></p>
-          <p><span>Last event</span><strong>{activeEvent?.message ?? view?.log.at(-1) ?? 'Waiting for the engine'}</strong></p>
-          <p><span>Last input</span><strong>{lastInput}</strong></p>
-          <small>A opens or submits the focused choice. B closes a choice panel; Start opens your team.{!isMatch && ' Use the menu to switch player views or reset.'}</small>
-        </aside>
       </section>
-    </main>
+    </TrainerGearShell>
   )
 }

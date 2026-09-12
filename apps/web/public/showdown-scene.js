@@ -9,7 +9,9 @@
 
   function resize() {
     const scale = Math.min(window.innerWidth / 640, window.innerHeight / 360)
-    stage.style.transform = `translate(-50%, -50%) scale(${scale})`
+    const x = (window.innerWidth - (640 * scale)) / 2
+    const y = (window.innerHeight - (360 * scale)) / 2
+    stage.style.transform = `translate(${x}px, ${y}px) scale(${scale})`
   }
 
   function showError(message) {

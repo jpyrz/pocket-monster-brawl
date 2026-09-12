@@ -233,6 +233,36 @@ export function InvitationsPage() {
   );
 }
 
+export function CupsPage() {
+  const leagues = useQuery({
+    queryKey: ["leagues"],
+    queryFn: () => api<{ leagues: LeagueSummaryView[] }>("/api/leagues"),
+  });
+  const events = leagues.data?.leagues.flatMap((league) =>
+    league.nextTournament ? [{ league, tournament: league.nextTournament }] : [],
+  ) ?? [];
+
+  return (
+    <RequireSession>
+      <main className={styles.workspace}>
+        <header className={styles.screenHeader}>
+          <div><h1>Cups</h1><p>Current tournament rooms</p></div>
+        </header>
+        <section className={styles.eventList}>
+          {events.length ? events.map(({ league, tournament }) => (
+            <Link className={styles.eventRow} key={tournament.id} to={`/leagues/${league.id}/tournaments/${tournament.id}/team`}>
+              <div className={styles.eventStatus}><span />{tournament.status.replaceAll("-", " ")}</div>
+              <strong>{tournament.name}</strong>
+              <small>{league.name} · Best of {tournament.rules.bestOf} · {tournament.rules.teamSize} Pokémon</small>
+              <b>OPEN ›</b>
+            </Link>
+          )) : <div className={styles.empty}><strong>No active cups</strong><p>Create a tournament from one of your leagues.</p></div>}
+        </section>
+      </main>
+    </RequireSession>
+  );
+}
+
 export function PlayerPage() {
   const session = useSession();
   const queryClient = useQueryClient();
@@ -250,7 +280,7 @@ export function PlayerPage() {
         <section className={styles.playerCard}>
           <span>{session.data?.user.displayName.slice(0, 1).toUpperCase()}</span>
           <div><small>Trainer</small><h2>{session.data?.user.displayName}</h2><p>@{session.data?.user.username}</p></div>
-          <b>GEN III</b>
+          <b>TRAINER</b>
         </section>
         <div className={styles.systemPanel}>
           <div><span>Server</span><strong>Local link online</strong></div>
