@@ -176,12 +176,17 @@
   box-sizing: border-box;
 }
 
-.shoulders { height: 44px; padding: 4px 10px; display: grid; grid-template-columns: 1fr 1fr; align-items: center; gap: 16px; border-bottom: 3px solid var(--gear-red-dark); }
-.shoulders button { min-width: 0; height: 33px; padding: 0 8px; display: flex; align-items: center; justify-content: flex-start; gap: 7px; color: var(--gear-ink); border: 3px solid var(--gear-ink); border-radius: 12px 3px 3px 12px; background: var(--gear-cream); box-shadow: 0 3px 0 var(--gear-red-dark); cursor: pointer; }
-.shoulders button:last-child { justify-content: flex-end; border-radius: 3px 12px 12px 3px; }
+.shoulders { height: 44px; padding: 4px 10px; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 8px; border-bottom: 3px solid var(--gear-red-dark); }
+.shoulderButton { min-width: 0; height: 33px; padding: 0 8px; display: flex; align-items: center; justify-content: flex-start; color: var(--gear-ink); border: 3px solid var(--gear-ink); border-radius: 12px 3px 3px 12px; background: var(--gear-cream); box-shadow: 0 3px 0 var(--gear-red-dark); cursor: pointer; }
+.shoulderButton:last-child { justify-content: flex-end; border-radius: 3px 12px 12px 3px; }
 .shoulders button:active:not(:disabled) { transform: translateY(2px); box-shadow: 0 1px 0 var(--gear-red-dark); }
 .shoulders button:disabled { opacity: .48; }
 .shoulders b { font-size: 14px; }
+.collapseButton, .collapsedController button { width: 30px; height: 27px; padding: 0; display: grid; place-items: center; color: var(--gear-cream); border: 2px solid var(--gear-ink); border-radius: 4px; background: var(--gear-red-dark); box-shadow: 0 3px 0 #6e2021; cursor: pointer; }
+.collapseButton span, .collapsedController span { font-size: 8px; line-height: 1; }
+
+.collapsedController { min-height: calc(34px + env(safe-area-inset-bottom)); padding: 3px 0 env(safe-area-inset-bottom); display: grid; place-items: start center; border-top: 4px solid var(--gear-ink); background: var(--gear-red); box-sizing: border-box; }
+.collapsedController button:active { transform: translateY(2px); box-shadow: 0 1px 0 #6e2021; }
 
 .controlBody { min-height: 0; padding: 34px 14px 24px; display: grid; grid-template-columns: 150px minmax(42px, 1fr) 146px; align-items: start; gap: 8px; position: relative; }
 .dpad { width: 150px; height: 150px; display: grid; grid-column: 1; grid-template: repeat(3, 50px) / repeat(3, 50px); filter: drop-shadow(4px 5px 0 var(--gear-red-dark)); }

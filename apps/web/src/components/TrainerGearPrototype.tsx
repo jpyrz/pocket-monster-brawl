@@ -12,6 +12,23 @@ const modes: ReadonlyArray<{ id: GearMode; code: string; label: string }> = [
 ]
 const pikachuSprite = 'https://play.pokemonshowdown.com/sprites/ani/pikachu.gif'
 const teamSprites = ['pikachu', 'charizard', 'blastoise', 'venusaur', 'snorlax', 'gengar']
+const controllerPreferenceKey = 'pmb-controller-collapsed'
+
+function readControllerPreference() {
+  try {
+    return window.localStorage.getItem(controllerPreferenceKey) === 'true'
+  } catch {
+    return false
+  }
+}
+
+function saveControllerPreference(collapsed: boolean) {
+  try {
+    window.localStorage.setItem(controllerPreferenceKey, String(collapsed))
+  } catch {
+    return
+  }
+}
 
 export function TrainerGearPrototype() {
   const [screen, setScreen] = useState<GearScreen>('continue')
@@ -20,7 +37,16 @@ export function TrainerGearPrototype() {
   const [menuSelection, setMenuSelection] = useState(0)
   const [helpOpen, setHelpOpen] = useState(false)
   const [message, setMessage] = useState('')
+  const [controllerCollapsed, setControllerCollapsed] = useState(readControllerPreference)
   const selectionCount = screen === 'link' || screen === 'team' ? 3 : screen === 'card' ? 2 : 1
+
+  function toggleController() {
+    setControllerCollapsed((collapsed) => {
+      const next = !collapsed
+      saveControllerPreference(next)
+      return next
+    })
+  }
 
   function selectMode(mode: GearMode) {
     setScreen(mode)
@@ -108,26 +134,33 @@ export function TrainerGearPrototype() {
 
         <div className={`${styles.display} ${screen === 'continue' ? styles.bootDisplay : ''}`}>
           {screen === 'continue' && <ContinueScreen onContinue={() => activate()} />}
-          {screen === 'link' && <LinkScreen message={message} onActivate={activate} selection={selection} />}
-          {screen === 'team' && <TeamScreen message={message} onActivate={activate} selection={selection} />}
+          {screen === 'link' && <LinkScreen layoutRevision={Number(controllerCollapsed)} message={message} onActivate={activate} selection={selection} />}
+          {screen === 'team' && <TeamScreen layoutRevision={Number(controllerCollapsed)} message={message} onActivate={activate} selection={selection} />}
           {screen === 'cup' && <CupScreen menuOpen={menuOpen} menuSelection={menuSelection} message={message} onActivate={() => activate()} onMenuActivate={activateMenu} />}
-          {screen === 'card' && <CardScreen message={message} onActivate={activate} selection={selection} />}
+          {screen === 'card' && <CardScreen layoutRevision={Number(controllerCollapsed)} message={message} onActivate={activate} selection={selection} />}
           {helpOpen && <ControlHelp onClose={() => setHelpOpen(false)} />}
         </div>
 
-        <ControllerDeck
-          canCycle={screen !== 'continue'}
-          onA={() => activate()}
-          onB={goBack}
-          onDown={() => moveCursor(1)}
-          onLeft={() => moveCursor(-1)}
-          onRight={() => moveCursor(1)}
-          onSelect={() => setHelpOpen((open) => !open)}
-          onShoulderLeft={() => cycleMode(-1)}
-          onShoulderRight={() => cycleMode(1)}
-          onStart={goToTitle}
-          onUp={() => moveCursor(-1)}
-        />
+        {controllerCollapsed ? (
+          <footer className={styles.collapsedController} aria-label="Touch controls mode">
+            <button aria-label="Show controller" onClick={toggleController} type="button"><span aria-hidden="true">▲</span></button>
+          </footer>
+        ) : (
+          <ControllerDeck
+            canCycle={screen !== 'continue'}
+            onA={() => activate()}
+            onB={goBack}
+            onDown={() => moveCursor(1)}
+            onLeft={() => moveCursor(-1)}
+            onRight={() => moveCursor(1)}
+            onSelect={() => setHelpOpen((open) => !open)}
+            onCollapse={toggleController}
+            onShoulderLeft={() => cycleMode(-1)}
+            onShoulderRight={() => cycleMode(1)}
+            onStart={goToTitle}
+            onUp={() => moveCursor(-1)}
+          />
+        )}
       </section>
     </main>
   )
@@ -147,10 +180,10 @@ function ContinueScreen({ onContinue }: { onContinue: () => void }) {
   )
 }
 
-type ScreenProps = { selection: number; message: string; onActivate: (index: number) => void }
+type ScreenProps = { selection: number; message: string; layoutRevision: number; onActivate: (index: number) => void }
 type MenuRow = readonly [string, string, string]
 
-function LinkScreen({ selection, message, onActivate }: ScreenProps) {
+function LinkScreen({ selection, message, layoutRevision, onActivate }: ScreenProps) {
   const rows = [
     ['TOURNAMENT BOARD', 'Indigo Cup · Match ready', '!'],
     ['TRAINER ROSTER', '2 registered trainers', '›'],
@@ -162,13 +195,13 @@ function LinkScreen({ selection, message, onActivate }: ScreenProps) {
         <div className={styles.partnerPane}><span className={styles.levelTag}>PARTNER</span><img alt="Pikachu" src={pikachuSprite} /><strong>PIKACHU</strong><small>TEAM 01</small></div>
         <div className={styles.clubPane}><small>CURRENT LEAGUE</small><h2>INDIGO<br />LINK CLUB</h2><dl><div><dt>TRAINERS</dt><dd>2 / 8</dd></div><div><dt>YOUR ROLE</dt><dd>ADMIN</dd></div><div><dt>LINK</dt><dd className={styles.online}>ONLINE</dd></div></dl></div>
       </section>
-      <MenuRows onActivate={onActivate} rows={rows} selection={selection} />
+      <MenuRows layoutRevision={layoutRevision} onActivate={onActivate} rows={rows} selection={selection} />
       {message && <p className={styles.messageBox}>{message}</p>}
     </div>
   )
 }
 
-function TeamScreen({ selection, message, onActivate }: ScreenProps) {
+function TeamScreen({ selection, message, layoutRevision, onActivate }: ScreenProps) {
   const rows = [
     ['REGISTERED TEAM', '6 Pokémon · Lead Pikachu', '›'],
     ['IMPORT SAVE', 'FireRed save currently loaded', '›'],
@@ -180,7 +213,7 @@ function TeamScreen({ selection, message, onActivate }: ScreenProps) {
         <header><span>TEAM 01</span><strong>REGISTERED</strong><small>PRIVATE</small></header>
         <div>{teamSprites.map((pokemon, index) => <span key={pokemon}><img alt={pokemon} src={`https://play.pokemonshowdown.com/sprites/gen5/${pokemon}.png`} /><small>{index + 1}</small></span>)}</div>
       </section>
-      <MenuRows onActivate={onActivate} rows={rows} selection={selection} />
+      <MenuRows layoutRevision={layoutRevision} onActivate={onActivate} rows={rows} selection={selection} />
       {message && <p className={styles.messageBox}>{message}</p>}
     </div>
   )
@@ -213,18 +246,18 @@ function CupScreen({ menuOpen, menuSelection, message, onActivate, onMenuActivat
   )
 }
 
-function CardScreen({ selection, message, onActivate }: ScreenProps) {
+function CardScreen({ selection, message, layoutRevision, onActivate }: ScreenProps) {
   const rows = [['LEAGUE RECORD', '0 wins · 0 losses', '›'], ['SYSTEM SETTINGS', 'Sound · Haptics · Theme', '›']] as const
   return (
     <div className={styles.screenPage}>
       <section className={styles.trainerCard}><span>J</span><div><small>TRAINER</small><h2>JAMES</h2><p>@jamespyrz</p></div><b>PMB</b></section>
-      <MenuRows onActivate={onActivate} rows={rows} selection={selection} />
+      <MenuRows layoutRevision={layoutRevision} onActivate={onActivate} rows={rows} selection={selection} />
       {message && <p className={styles.messageBox}>{message}</p>}
     </div>
   )
 }
 
-function MenuRows({ selection, rows, onActivate }: { selection: number; rows: readonly MenuRow[]; onActivate: (index: number) => void }) {
+function MenuRows({ selection, rows, layoutRevision, onActivate }: { selection: number; rows: readonly MenuRow[]; layoutRevision: number; onActivate: (index: number) => void }) {
   const selectedRow = useRef<HTMLButtonElement>(null)
 
   useEffect(() => {
@@ -235,7 +268,7 @@ function MenuRows({ selection, rows, onActivate }: { selection: number; rows: re
       block: 'nearest',
       inline: 'nearest',
     })
-  }, [selection])
+  }, [layoutRevision, selection])
 
   return (
     <section className={styles.gameMenu} aria-label="Screen actions">
@@ -249,14 +282,15 @@ function MenuRows({ selection, rows, onActivate }: { selection: number; rows: re
   )
 }
 
-function ControllerDeck({ canCycle, onA, onB, onDown, onLeft, onRight, onSelect, onShoulderLeft, onShoulderRight, onStart, onUp }: {
-  canCycle: boolean; onA: () => void; onB: () => void; onDown: () => void; onLeft: () => void; onRight: () => void; onSelect: () => void; onShoulderLeft: () => void; onShoulderRight: () => void; onStart: () => void; onUp: () => void
+function ControllerDeck({ canCycle, onA, onB, onCollapse, onDown, onLeft, onRight, onSelect, onShoulderLeft, onShoulderRight, onStart, onUp }: {
+  canCycle: boolean; onA: () => void; onB: () => void; onCollapse: () => void; onDown: () => void; onLeft: () => void; onRight: () => void; onSelect: () => void; onShoulderLeft: () => void; onShoulderRight: () => void; onStart: () => void; onUp: () => void
 }) {
   return (
     <footer className={styles.controllerDeck} aria-label="Trainer Gear controls">
       <div className={styles.shoulders}>
-        <button aria-label="Previous mode" disabled={!canCycle} onClick={onShoulderLeft} type="button"><b>L</b></button>
-        <button aria-label="Next mode" disabled={!canCycle} onClick={onShoulderRight} type="button"><b>R</b></button>
+        <button aria-label="Previous mode" className={styles.shoulderButton} disabled={!canCycle} onClick={onShoulderLeft} type="button"><b>L</b></button>
+        <button aria-label="Hide controller" className={styles.collapseButton} onClick={onCollapse} type="button"><span aria-hidden="true">▼</span></button>
+        <button aria-label="Next mode" className={styles.shoulderButton} disabled={!canCycle} onClick={onShoulderRight} type="button"><b>R</b></button>
       </div>
       <div className={styles.controlBody}>
         <div className={styles.dpad} aria-label="Menu direction pad">
