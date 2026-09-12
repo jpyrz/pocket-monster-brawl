@@ -17,7 +17,7 @@ Friends create accounts and join a persistent private **league**. A league owns 
 7. The server seeds a single-elimination bracket, assigns opponents, and runs each best-of match series using the frozen teams and rules. Players only receive battle information they are allowed to see.
 8. Each finished series advances its winner transactionally. The final series winner becomes the tournament champion; the league retains the event, bracket, and match history for future visits.
 
-The whole product uses one portrait Trainer Gear interface: a red, cream, black, and yellow handheld frame with a large screen above working D-pad and A/B controls. LINK, TEAM, CUP, and CARD organize the application; L/R changes modes, direct touch remains available, and the controls can collapse. The live Showdown battle replaces the app content inside the same device instead of switching to a separate controller skin. It is a browser interface, not an emulator. Desktop and wider layouts remain usable.
+The whole product uses one portrait Trainer Gear interface: a red, cream, black, and yellow handheld frame with a large screen above working D-pad and A/B controls. LEAGUE, CUP, INBOX, and CARD organize the global application; team import and registration live inside a specific tournament instead of appearing as a global destination. L/R changes modes, direct touch remains available, and the controls can collapse. The live Showdown battle replaces the app content inside the same device instead of switching to a separate controller skin. It is a browser interface, not an emulator. Desktop and wider layouts remain usable.
 
 Confirmed requirements:
 
@@ -197,7 +197,7 @@ Done when: a player uploads their own save, registers a team, and later joins a 
 
 - Use the same red Trainer Gear frame, proportions, safe-area handling, collapse preference, and physical controls across league workflows and live battles.
 - Use one selection model for taps, D-pad, keyboard, and A/B so inputs remain consistent. Add hardware gamepad mapping only after testing on actual devices.
-- D-pad moves focus; A selects/confirms; B backs out before submission; Select opens the battle menu and Start opens the party during a battle. In application screens, L/R changes mode, Start opens LINK, and Select opens invitations.
+- D-pad moves focus; A selects/confirms; B backs out before submission; Select opens the battle menu and Start opens the party during a battle. In application screens, L/R changes mode, Start opens LEAGUE, and Select opens INBOX.
 - Render Pokemon, health bars, status indicators, turn text, and lightweight attack/faint animations. Evaluate reuse of Showdown's rendering code in a time-boxed spike; do not make completion depend on extracting it successfully. A simpler custom renderer is the fallback.
 - Treat simulator events as authoritative and animation as presentation. Reconnect and replay must not depend on completing an animation.
 - Respect phone safe areas, portrait and landscape, touch target sizes, reduced motion, and mute controls. Support direct tapping even with controller buttons visible.

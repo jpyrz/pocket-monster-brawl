@@ -1,5 +1,4 @@
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
-import { SaveImport } from './components/SaveImport'
 import { SkinLab } from './components/SkinLab'
 import { AuthPage, CupsPage, Dashboard, InvitationsPage, LeaguePage, PlayerPage, TournamentTeamPage } from './components/ProductFlow'
 import { TrainerGearPrototype } from './components/TrainerGearPrototype'
@@ -18,24 +17,25 @@ function App() {
   const isBattleRoute = location.pathname === '/skin-lab' || location.pathname.startsWith('/matches/')
   const isPrototypeRoute = location.pathname === '/gear-lab'
   const showTabs = location.pathname !== '/' && location.pathname !== '/welcome'
-  const mode: GearMode = location.pathname === '/imports/new' || location.pathname.includes('/tournaments/')
-    ? 'team'
-    : location.pathname === '/app/cups'
+  const mode: GearMode = location.pathname === '/app/cups' || location.pathname.includes('/tournaments/')
       ? 'cup'
+      : location.pathname === '/app/inbox' || location.pathname === '/app/invitations'
+        ? 'inbox'
       : location.pathname === '/app/player'
         ? 'card'
-        : 'link'
+        : 'league'
 
   const routes = <Routes>
     <Route path="/" element={<Launch />} />
     <Route path="/welcome" element={<AuthPage />} />
     <Route path="/app" element={<Dashboard />} />
-    <Route path="/app/invitations" element={<InvitationsPage />} />
+    <Route path="/app/inbox" element={<InvitationsPage />} />
+    <Route path="/app/invitations" element={<Navigate to="/app/inbox" replace />} />
     <Route path="/app/cups" element={<CupsPage />} />
     <Route path="/app/player" element={<PlayerPage />} />
     <Route path="/leagues/:leagueId" element={<LeaguePage />} />
     <Route path="/leagues/:leagueId/tournaments/:tournamentId/team" element={<TournamentTeamPage />} />
-    <Route path="/imports/new" element={<SaveImport />} />
+    <Route path="/imports/new" element={<Navigate to="/app" replace />} />
     <Route path="/skin-lab" element={<SkinLab />} />
     <Route path="/gear-lab" element={<TrainerGearPrototype />} />
     <Route path="/matches/:battleId" element={<SkinLab />} />

@@ -1,17 +1,16 @@
 import { useEffect, useRef, useState } from 'react'
 import styles from './TrainerGearPrototype.module.scss'
 
-type GearMode = 'link' | 'team' | 'cup' | 'card'
+type GearMode = 'league' | 'cup' | 'inbox' | 'card'
 type GearScreen = 'continue' | GearMode
 
 const modes: ReadonlyArray<{ id: GearMode; code: string; label: string }> = [
-  { id: 'link', code: 'LK', label: 'LINK' },
-  { id: 'team', code: 'TM', label: 'TEAM' },
+  { id: 'league', code: 'LG', label: 'LEAGUE' },
   { id: 'cup', code: 'CP', label: 'CUP' },
+  { id: 'inbox', code: 'IN', label: 'INBOX' },
   { id: 'card', code: 'ID', label: 'CARD' },
 ]
 const pikachuSprite = 'https://play.pokemonshowdown.com/sprites/ani/pikachu.gif'
-const teamSprites = ['pikachu', 'charizard', 'blastoise', 'venusaur', 'snorlax', 'gengar']
 const controllerPreferenceKey = 'pmb-controller-collapsed'
 
 function readControllerPreference() {
@@ -38,7 +37,7 @@ export function TrainerGearPrototype() {
   const [helpOpen, setHelpOpen] = useState(false)
   const [message, setMessage] = useState('')
   const [controllerCollapsed, setControllerCollapsed] = useState(readControllerPreference)
-  const selectionCount = screen === 'link' || screen === 'team' ? 3 : screen === 'card' ? 2 : 1
+  const selectionCount = screen === 'league' ? 3 : screen === 'inbox' || screen === 'card' ? 2 : 1
 
   function toggleController() {
     setControllerCollapsed((collapsed) => {
@@ -79,19 +78,17 @@ export function TrainerGearPrototype() {
   }
 
   function activate(index = selection) {
-    if (screen === 'continue') return selectMode('link')
+    if (screen === 'continue') return selectMode('league')
     if (helpOpen) return setHelpOpen(false)
     if (menuOpen) {
       return activateMenu(menuSelection)
     }
-    if (screen === 'link') {
+    if (screen === 'league') {
       if (index === 0) selectMode('cup')
       if (index === 1) setMessage('Trainer roster selected. 2 trainers are connected.')
-      if (index === 2) setMessage('There are no new Link Club invitations.')
-    } else if (screen === 'team') {
-      if (index === 0) setMessage('Registered team selected. Six Pokémon are locked.')
-      if (index === 1) setMessage('Save import selected. A file picker would open here.')
-      if (index === 2) setMessage('This team is locked for the current tournament.')
+      if (index === 2) selectMode('inbox')
+    } else if (screen === 'inbox') {
+      setMessage(index === 0 ? 'There are no new league invitations.' : 'Invitation history selected.')
     } else if (screen === 'cup') {
       setMenuOpen(true)
       setMenuSelection(0)
@@ -104,7 +101,7 @@ export function TrainerGearPrototype() {
     if (helpOpen) return setHelpOpen(false)
     if (menuOpen) return setMenuOpen(false)
     if (screen === 'continue') return
-    if (screen !== 'link') return selectMode('link')
+    if (screen !== 'league') return selectMode('league')
     setScreen('continue')
   }
 
@@ -119,7 +116,7 @@ export function TrainerGearPrototype() {
     <main className={styles.prototype}>
       <section className={`${styles.gear} ${screen === 'continue' ? styles.bootGear : ''}`} aria-label="Trainer Gear controller prototype">
         <header className={styles.hardwareTop}>
-          <span>TRAINER GEAR / 02</span><i aria-label="Link connected" />
+          <span>TRAINER GEAR / 02</span><i aria-label="Server connected" />
         </header>
 
         {screen !== 'continue' && (
@@ -134,9 +131,9 @@ export function TrainerGearPrototype() {
 
         <div className={`${styles.display} ${screen === 'continue' ? styles.bootDisplay : ''}`}>
           {screen === 'continue' && <ContinueScreen onContinue={() => activate()} />}
-          {screen === 'link' && <LinkScreen layoutRevision={Number(controllerCollapsed)} message={message} onActivate={activate} selection={selection} />}
-          {screen === 'team' && <TeamScreen layoutRevision={Number(controllerCollapsed)} message={message} onActivate={activate} selection={selection} />}
+          {screen === 'league' && <LeagueScreen layoutRevision={Number(controllerCollapsed)} message={message} onActivate={activate} selection={selection} />}
           {screen === 'cup' && <CupScreen menuOpen={menuOpen} menuSelection={menuSelection} message={message} onActivate={() => activate()} onMenuActivate={activateMenu} />}
+          {screen === 'inbox' && <InboxScreen layoutRevision={Number(controllerCollapsed)} message={message} onActivate={activate} selection={selection} />}
           {screen === 'card' && <CardScreen layoutRevision={Number(controllerCollapsed)} message={message} onActivate={activate} selection={selection} />}
           {helpOpen && <ControlHelp onClose={() => setHelpOpen(false)} />}
         </div>
@@ -183,17 +180,17 @@ function ContinueScreen({ onContinue }: { onContinue: () => void }) {
 type ScreenProps = { selection: number; message: string; layoutRevision: number; onActivate: (index: number) => void }
 type MenuRow = readonly [string, string, string]
 
-function LinkScreen({ selection, message, layoutRevision, onActivate }: ScreenProps) {
+function LeagueScreen({ selection, message, layoutRevision, onActivate }: ScreenProps) {
   const rows = [
     ['TOURNAMENT BOARD', 'Indigo Cup · Match ready', '!'],
     ['TRAINER ROSTER', '2 registered trainers', '›'],
-    ['LINK REQUESTS', 'No new invitations', '›'],
+    ['LEAGUE INVITATIONS', 'No new invitations', '›'],
   ] as const
   return (
     <div className={styles.screenPage}>
-      <section className={styles.linkHero}>
+      <section className={styles.leagueHero}>
         <div className={styles.partnerPane}><span className={styles.levelTag}>PARTNER</span><img alt="Pikachu" src={pikachuSprite} /><strong>PIKACHU</strong><small>TEAM 01</small></div>
-        <div className={styles.clubPane}><small>CURRENT LEAGUE</small><h2>INDIGO<br />LINK CLUB</h2><dl><div><dt>TRAINERS</dt><dd>2 / 8</dd></div><div><dt>YOUR ROLE</dt><dd>ADMIN</dd></div><div><dt>LINK</dt><dd className={styles.online}>ONLINE</dd></div></dl></div>
+        <div className={styles.clubPane}><small>CURRENT LEAGUE</small><h2>INDIGO<br />LEAGUE</h2><dl><div><dt>TRAINERS</dt><dd>2 / 8</dd></div><div><dt>YOUR ROLE</dt><dd>ADMIN</dd></div><div><dt>SERVER</dt><dd className={styles.online}>ONLINE</dd></div></dl></div>
       </section>
       <MenuRows layoutRevision={layoutRevision} onActivate={onActivate} rows={rows} selection={selection} />
       {message && <p className={styles.messageBox}>{message}</p>}
@@ -201,18 +198,13 @@ function LinkScreen({ selection, message, layoutRevision, onActivate }: ScreenPr
   )
 }
 
-function TeamScreen({ selection, message, layoutRevision, onActivate }: ScreenProps) {
+function InboxScreen({ selection, message, layoutRevision, onActivate }: ScreenProps) {
   const rows = [
-    ['REGISTERED TEAM', '6 Pokémon · Lead Pikachu', '›'],
-    ['IMPORT SAVE', 'FireRed save currently loaded', '›'],
-    ['LOCK STATUS', 'Submitted and locked', '✓'],
+    ['NEW INVITATIONS', 'Nothing waiting', '—'],
+    ['INVITATION HISTORY', 'No previous invitations', '›'],
   ] as const
   return (
     <div className={styles.screenPage}>
-      <section className={styles.teamPreview}>
-        <header><span>TEAM 01</span><strong>REGISTERED</strong><small>PRIVATE</small></header>
-        <div>{teamSprites.map((pokemon, index) => <span key={pokemon}><img alt={pokemon} src={`https://play.pokemonshowdown.com/sprites/gen5/${pokemon}.png`} /><small>{index + 1}</small></span>)}</div>
-      </section>
       <MenuRows layoutRevision={layoutRevision} onActivate={onActivate} rows={rows} selection={selection} />
       {message && <p className={styles.messageBox}>{message}</p>}
     </div>

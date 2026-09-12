@@ -50,7 +50,7 @@ export function AuthPage() {
       <section className={styles.authConsole}>
         <div className={styles.authBrand}>
           <span aria-hidden="true">PM</span>
-          <div><strong>Pocket Monster Brawl</strong><small>Local Link</small></div>
+          <div><strong>Pocket Monster Brawl</strong></div>
         </div>
         <form className={styles.card} onSubmit={submit}>
           <div className={styles.tabs}>
@@ -142,14 +142,14 @@ export function Dashboard() {
         <header className={styles.screenHeader}>
           <div>
             <h1>Your leagues</h1>
-            <p>{leagues.data?.leagues.length ?? 0} link rooms</p>
+            <p>{leagues.data?.leagues.length ?? 0} league{leagues.data?.leagues.length === 1 ? "" : "s"}</p>
           </div>
           <button className={styles.iconAction} onClick={() => setCreateOpen((open) => !open)} type="button">
             <GameIcon name="plus" /><span>New</span>
           </button>
         </header>
         {Boolean(invitations.data?.invitations.length) && (
-          <Link className={styles.inviteAlert} to="/app/invitations">
+          <Link className={styles.inviteAlert} to="/app/inbox">
             <GameIcon name="mail" />
             <span><strong>New league invitation</strong><small>{invitations.data!.invitations.length} waiting</small></span>
             <b>OPEN</b>
@@ -161,7 +161,7 @@ export function Dashboard() {
             <div className={styles.panelHeading}><h2>New league</h2><button onClick={() => setCreateOpen(false)} type="button">Close</button></div>
             <label>
               League name
-              <input name="name" placeholder="Saturday Link Club" required />
+              <input name="name" placeholder="Saturday League" required />
             </label>
             <button className={styles.primary}>Create league</button>
           </form>
@@ -182,7 +182,7 @@ export function Dashboard() {
           ) : (
             <div className={styles.empty}>
               <strong>No leagues found</strong>
-              <p>Use New to create the first link room.</p>
+              <p>Use New to create your first league.</p>
             </div>
           )}
         </section>
@@ -217,7 +217,7 @@ export function InvitationsPage() {
   return (
     <RequireSession>
       <main className={styles.workspace}>
-        <header className={styles.screenHeader}><div><h1>Invites</h1><p>Incoming link requests</p></div></header>
+        <header className={styles.screenHeader}><div><h1>Inbox</h1><p>League invitations</p></div></header>
         {error && <p className={styles.error}>{error}</p>}
         <section className={styles.leagueList}>
           {invitations.data?.invitations.length ? invitations.data.invitations.map((invite) => (
@@ -246,7 +246,7 @@ export function CupsPage() {
     <RequireSession>
       <main className={styles.workspace}>
         <header className={styles.screenHeader}>
-          <div><h1>Cups</h1><p>Current tournament rooms</p></div>
+          <div><h1>Cups</h1><p>Current tournaments</p></div>
         </header>
         <section className={styles.eventList}>
           {events.length ? events.map(({ league, tournament }) => (
@@ -283,7 +283,7 @@ export function PlayerPage() {
           <b>TRAINER</b>
         </section>
         <div className={styles.systemPanel}>
-          <div><span>Server</span><strong>Local link online</strong></div>
+          <div><span>Server</span><strong>Connected</strong></div>
           <div><span>Save handling</span><strong>Raw files never retained</strong></div>
           <button onClick={logout}>Sign out</button>
         </div>
@@ -468,14 +468,14 @@ export function TournamentTeamPage() {
   );
   const isAdmin = league.data?.currentUserRole === "owner" || league.data?.currentUserRole === "admin";
   if (league.isPending)
-    return <main className={styles.loading}>Opening team room…</main>;
+    return <main className={styles.loading}>Opening tournament…</main>;
   if (!tournament) return <Navigate to={`/leagues/${leagueId}`} replace />;
   return (
     <RequireSession>
       <div>
         <div className={styles.contextBar}>
           <Link to={`/leagues/${leagueId}`}>← {league.data?.name}</Link>
-          <span>{tournament.name} · Private team room</span>
+          <span>{tournament.name} · Private team</span>
         </div>
         <TournamentMatchPanel isAdmin={isAdmin} tournament={tournament} />
         <SaveImport tournament={tournament} />

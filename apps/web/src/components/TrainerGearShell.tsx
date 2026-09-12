@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import styles from './TrainerGearShell.module.scss'
 
-export type GearMode = 'link' | 'team' | 'cup' | 'card'
+export type GearMode = 'league' | 'cup' | 'inbox' | 'card'
 
 type GearControls = {
   readonly up: () => void
@@ -25,9 +25,9 @@ type TrainerGearShellProps = {
 
 const controllerPreferenceKey = 'pmb-controller-collapsed'
 const modes: ReadonlyArray<{ id: GearMode; code: string; label: string; path: string }> = [
-  { id: 'link', code: 'LK', label: 'LINK', path: '/app' },
-  { id: 'team', code: 'TM', label: 'TEAM', path: '/imports/new' },
+  { id: 'league', code: 'LG', label: 'LEAGUE', path: '/app' },
   { id: 'cup', code: 'CP', label: 'CUP', path: '/app/cups' },
+  { id: 'inbox', code: 'IN', label: 'INBOX', path: '/app/inbox' },
   { id: 'card', code: 'ID', label: 'CARD', path: '/app/player' },
 ]
 
@@ -52,7 +52,7 @@ function isUsable(element: HTMLElement) {
   return rect.width > 0 && rect.height > 0 && !element.hasAttribute('disabled') && element.getAttribute('aria-hidden') !== 'true'
 }
 
-export function TrainerGearShell({ children, mode = 'link', showTabs = true, controls, battle = false }: TrainerGearShellProps) {
+export function TrainerGearShell({ children, mode = 'league', showTabs = true, controls, battle = false }: TrainerGearShellProps) {
   const navigate = useNavigate()
   const location = useLocation()
   const displayRef = useRef<HTMLDivElement>(null)
@@ -121,7 +121,7 @@ export function TrainerGearShell({ children, mode = 'link', showTabs = true, con
     confirm,
     back: goBack,
     start: () => navigate('/app'),
-    select: () => navigate('/app/invitations'),
+    select: () => navigate('/app/inbox'),
   }
   const activeControls = controls ?? appControls
 
@@ -174,7 +174,7 @@ export function TrainerGearShell({ children, mode = 'link', showTabs = true, con
     <main className={styles.stage}>
       <section className={`${styles.gear} ${!showTabs ? styles.noTabs : ''} ${battle ? styles.battleGear : ''}`} aria-label={battle ? 'Trainer Gear battle console' : 'Trainer Gear'}>
         <header className={styles.hardwareTop}>
-          <span>{battle ? 'BATTLE LINK' : 'TRAINER GEAR / 02'}</span><i aria-label="Link connected" />
+          <span>{battle ? 'BATTLE' : 'TRAINER GEAR / 02'}</span><i aria-label="Server connected" />
         </header>
 
         {showTabs && <nav className={styles.modeTabs} aria-label="Trainer Gear modes">

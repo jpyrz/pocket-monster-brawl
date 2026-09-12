@@ -91,7 +91,7 @@
 .screenPage { height: 100%; padding-bottom: 10px; overflow-y: auto; position: relative; scroll-padding-block: 10px; scrollbar-width: none; }
 .screenPage::-webkit-scrollbar { display: none; }
 
-.linkHero { min-height: 214px; display: grid; grid-template-columns: 43% 57%; border-bottom: 4px solid var(--gear-ink); }
+.leagueHero { min-height: 214px; display: grid; grid-template-columns: 43% 57%; border-bottom: 4px solid var(--gear-ink); }
 .partnerPane { min-width: 0; display: grid; grid-template-rows: auto 1fr auto auto; place-items: center; padding: 10px 5px; background: var(--gear-cream); border-right: 4px solid var(--gear-ink); position: relative; }
 .partnerPane::after { content: ''; width: 85%; height: 13px; border-radius: 50%; background: #bdc9ca; position: absolute; left: 8%; bottom: 42px; }
 .partnerPane img { width: 112px; max-width: 100%; height: 112px; object-fit: contain; image-rendering: pixelated; z-index: 1; }
