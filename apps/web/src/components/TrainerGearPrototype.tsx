@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import styles from './TrainerGearPrototype.module.scss'
 
 type GearMode = 'link' | 'team' | 'cup' | 'card'
@@ -225,10 +225,22 @@ function CardScreen({ selection, message, onActivate }: ScreenProps) {
 }
 
 function MenuRows({ selection, rows, onActivate }: { selection: number; rows: readonly MenuRow[]; onActivate: (index: number) => void }) {
+  const selectedRow = useRef<HTMLButtonElement>(null)
+
+  useEffect(() => {
+    const row = selectedRow.current
+    if (!row) return
+    row.scrollIntoView({
+      behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+      block: 'nearest',
+      inline: 'nearest',
+    })
+  }, [selection])
+
   return (
     <section className={styles.gameMenu} aria-label="Screen actions">
       {rows.map(([title, detail, marker], index) => (
-        <button className={selection === index ? styles.selectedRow : undefined} key={title} onClick={() => onActivate(index)} type="button">
+        <button className={selection === index ? styles.selectedRow : undefined} key={title} onClick={() => onActivate(index)} ref={selection === index ? selectedRow : undefined} type="button">
           {selection === index && <span className={styles.cursor} aria-hidden="true">▶</span>}
           <span><strong>{title}</strong><small>{detail}</small></span><b>{marker}</b>
         </button>
