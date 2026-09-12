@@ -3,6 +3,7 @@ import { SaveImport } from './components/SaveImport'
 import { SkinLab } from './components/SkinLab'
 import { AuthPage, Dashboard, InvitationsPage, LeaguePage, PlayerPage, TournamentTeamPage } from './components/ProductFlow'
 import { GameIcon } from './components/GameIcon'
+import { TrainerGearPrototype } from './components/TrainerGearPrototype'
 import { useSession } from './components/productApi'
 import styles from './App.module.scss'
 
@@ -15,7 +16,7 @@ function Launch() {
 function App() {
   const location = useLocation()
   const session = useSession()
-  const isControllerRoute = location.pathname === '/skin-lab' || location.pathname.startsWith('/matches/')
+  const isControllerRoute = location.pathname === '/skin-lab' || location.pathname === '/gear-lab' || location.pathname.startsWith('/matches/')
   const showShell = Boolean(session.data) && !isControllerRoute
 
   return (
@@ -42,6 +43,7 @@ function App() {
         <Route path="/leagues/:leagueId/tournaments/:tournamentId/team" element={<TournamentTeamPage />} />
         <Route path="/imports/new" element={<SaveImport />} />
         <Route path="/skin-lab" element={<SkinLab />} />
+        <Route path="/gear-lab" element={<TrainerGearPrototype />} />
         <Route path="/matches/:battleId" element={<SkinLab />} />
       </Routes>
 
