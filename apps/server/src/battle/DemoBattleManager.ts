@@ -41,13 +41,19 @@ type PlayerStreams = ReturnType<typeof getPlayerStreams>
 
 const require = createRequire(import.meta.url)
 const { BattleStream, Dex, getPlayerStreams } = require('pokemon-showdown') as typeof import('pokemon-showdown')
-const engineVersion = (require('pokemon-showdown/package.json') as { version: string }).version
+export const showdownEngineVersion = (require('pokemon-showdown/package.json') as { version: string }).version
 const playerNames: Record<DemoPlayerId, string> = { p1: 'Red', p2: 'Blue' }
 
-type RegisteredBattleTeam = {
+export type RegisteredBattleTeam = {
   packedTeam: string
   registrationId: string
   trainerName: string
+}
+
+export type BattleManagerOptions = {
+  matchId?: string
+  seed?: [number, number, number, number]
+  teams?: Partial<Record<DemoPlayerId, RegisteredBattleTeam>>
 }
 
 export class BattleRequestError extends Error {
@@ -71,7 +77,15 @@ export class DemoBattleManager {
   private eventTurns: Record<DemoPlayerId, number> = { p1: 0, p2: 0 }
   private errors: Partial<Record<DemoPlayerId, string>> = {}
   private seenIdempotencyKeys = new Set<string>()
-  private registeredTeams: Partial<Record<DemoPlayerId, RegisteredBattleTeam>> = {}
+  private registeredTeams: Partial<Record<DemoPlayerId, RegisteredBattleTeam>>
+  private readonly matchId: string
+  private readonly seed: [number, number, number, number]
+
+  constructor(options: BattleManagerOptions = {}) {
+    this.matchId = options.matchId ?? 'demo-gen3-battle'
+    this.seed = options.seed ?? [1, 2, 3, 4]
+    this.registeredTeams = structuredClone(options.teams ?? {})
+  }
 
   async useRegisteredTeam(player: DemoPlayerId, team: RegisteredBattleTeam): Promise<void> {
     this.registeredTeams[player] = structuredClone(team)
@@ -110,13 +124,13 @@ export class DemoBattleManager {
     void this.consume('p1', playerStreams.p1)
     void this.consume('p2', playerStreams.p2)
 
-    const teams = validateAndPackDemoTeams()
+    const teams = this.registeredTeams.p1 && this.registeredTeams.p2 ? null : validateAndPackDemoTeams()
     const p1 = this.registeredTeams.p1
     const p2 = this.registeredTeams.p2
     await playerStreams.omniscient.write([
-      `>start ${JSON.stringify({ formatid: 'gen3customgame', seed: [1, 2, 3, 4] })}`,
-      `>player p1 ${JSON.stringify({ name: p1?.trainerName ?? playerNames.p1, team: p1?.packedTeam ?? teams.p1 })}`,
-      `>player p2 ${JSON.stringify({ name: p2?.trainerName ?? playerNames.p2, team: p2?.packedTeam ?? teams.p2 })}`,
+      `>start ${JSON.stringify({ formatid: 'gen3customgame', seed: this.seed })}`,
+      `>player p1 ${JSON.stringify({ name: p1?.trainerName ?? playerNames.p1, team: p1?.packedTeam ?? teams!.p1 })}`,
+      `>player p2 ${JSON.stringify({ name: p2?.trainerName ?? playerNames.p2, team: p2?.packedTeam ?? teams!.p2 })}`,
     ].join('\n'))
 
     await this.waitUntil(() => Boolean(this.requests.p1 && this.requests.p2))
@@ -134,7 +148,11 @@ export class DemoBattleManager {
     return this.buildView(player)
   }
 
-  async submit(player: DemoPlayerId, choice: DemoBattleChoice): Promise<DemoBattleView> {
+  async submit(
+    player: DemoPlayerId,
+    choice: DemoBattleChoice,
+    beforeApply?: () => Promise<void>,
+  ): Promise<DemoBattleView> {
     await this.ensureInitialized()
     const key = `${player}:${choice.idempotencyKey}`
     if (this.seenIdempotencyKeys.has(key)) return this.buildView(player)
@@ -152,12 +170,24 @@ export class DemoBattleManager {
     }
 
     const command = this.toShowdownChoice(request, choice)
+    await beforeApply?.()
     this.seenIdempotencyKeys.add(key)
     this.submittedRequestIds[player] = currentRequestId
     this.errors[player] = undefined
     await this.playerStreams?.[player].write(command)
     await new Promise((resolve) => setTimeout(resolve, 0))
     return this.buildView(player)
+  }
+
+  winnerPlayer(): DemoPlayerId | null {
+    const winner = this.battleStream?.battle?.winner
+    if (!winner) return null
+    const p1Name = this.registeredTeams.p1?.trainerName ?? playerNames.p1
+    return winner === p1Name ? 'p1' : 'p2'
+  }
+
+  showdownLog(): string {
+    return this.protocol.p1.join('\n')
   }
 
   private ensureInitialized(): Promise<void> {
@@ -258,8 +288,8 @@ export class DemoBattleManager {
     else if (request?.active) phase = 'move'
 
     return {
-      matchId: 'demo-gen3-battle',
-      engineVersion,
+      matchId: this.matchId,
+      engineVersion: showdownEngineVersion,
       format: 'gen3customgame',
       player,
       playerName: playerRegistration?.trainerName ?? playerNames[player],

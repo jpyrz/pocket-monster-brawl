@@ -35,11 +35,11 @@ function Home() {
 
       <section className={styles.foundation} id="foundation">
         <div>
-          <p className={styles.eyebrow}>Milestone zero</p>
-          <h2>The risky boundaries come first.</h2>
+          <p className={styles.eyebrow}>Playable LAN foundation</p>
+          <h2>Real saves. Private teams. Real matches.</h2>
           <p>
-            Game rules, source-save parsing, and controller skins stay separate. This first
-            slice now reads real FireRed teams without retaining or modifying the source save.
+            Import a FireRed save, lock a private team, and battle another signed-in player
+            through the server-owned Pokémon Showdown engine.
           </p>
         </div>
         <div className={styles.statusGrid}>
@@ -83,7 +83,7 @@ function App() {
   const location = useLocation()
   const session = useSession()
   const queryClient = useQueryClient()
-  const isControllerRoute = location.pathname === '/skin-lab'
+  const isControllerRoute = location.pathname === '/skin-lab' || location.pathname.startsWith('/matches/')
 
   async function logout() {
     await fetch('/api/auth/logout', { method: 'POST' })
@@ -114,10 +114,11 @@ function App() {
         <Route path="/leagues/:leagueId/tournaments/:tournamentId/team" element={<TournamentTeamPage />} />
         <Route path="/imports/new" element={<SaveImport />} />
         <Route path="/skin-lab" element={<SkinLab />} />
+        <Route path="/matches/:battleId" element={<SkinLab />} />
       </Routes>
 
       <footer className={styles.footer}>
-        <p>Local prototype · raw saves are parsed locally, never retained, and never changed.</p>
+        <p>Self-hosted LAN app · raw saves are parsed locally, never retained, and never changed.</p>
       </footer>
     </div>
   )

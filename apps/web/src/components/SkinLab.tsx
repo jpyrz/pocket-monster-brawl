@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link, useParams, useSearchParams } from 'react-router-dom'
 import {
   fixtureSkin,
   type BattleEventView,
@@ -11,6 +11,7 @@ import {
   type SkinRect,
 } from '@pmb/domain'
 import { linearMenuFocus, moveGridFocus } from './battleSelection'
+import { createClientUuid } from './clientUuid'
 import { ShowdownBattleScene } from './ShowdownBattleScene'
 import styles from './SkinLab.module.scss'
 
@@ -29,14 +30,14 @@ function rectStyle(rect: SkinRect): CSSProperties {
   } as CSSProperties
 }
 
-async function readBattle(player: DemoPlayerId): Promise<DemoBattleView> {
-  const response = await fetch(`/api/demo-battle/${player}`)
+async function readBattle(player: DemoPlayerId, matchId?: string): Promise<DemoBattleView> {
+  const response = await fetch(matchId ? `/api/matches/${matchId}` : `/api/demo-battle/${player}`)
   if (!response.ok) throw new Error('The local battle server is not available.')
   return response.json() as Promise<DemoBattleView>
 }
 
-async function sendChoice(player: DemoPlayerId, choice: DemoBattleChoice): Promise<DemoBattleView> {
-  const response = await fetch(`/api/demo-battle/${player}/choices`, {
+async function sendChoice(player: DemoPlayerId, choice: DemoBattleChoice, matchId?: string): Promise<DemoBattleView> {
+  const response = await fetch(matchId ? `/api/matches/${matchId}/choices` : `/api/demo-battle/${player}/choices`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(choice),
@@ -54,8 +55,9 @@ async function resetBattle(): Promise<DemoBattleView> {
 
 export function SkinLab() {
   const [searchParams] = useSearchParams()
-  const player: DemoPlayerId = searchParams.get('player') === 'p2' ? 'p2' : 'p1'
-  const otherPlayer: DemoPlayerId = player === 'p1' ? 'p2' : 'p1'
+  const { battleId } = useParams()
+  const routePlayer: DemoPlayerId = searchParams.get('player') === 'p2' ? 'p2' : 'p1'
+  const isMatch = Boolean(battleId)
   const queryClient = useQueryClient()
   const lastEventSequence = useRef<number | null>(null)
   const [eventQueue, setEventQueue] = useState<BattleEventView[]>([])
@@ -73,9 +75,9 @@ export function SkinLab() {
     }
   }, [])
   const battle = useQuery({
-    queryKey: ['demo-battle', player],
+    queryKey: ['battle', battleId ?? 'demo', routePlayer],
     queryFn: async () => {
-      const next = await readBattle(player)
+      const next = await readBattle(routePlayer, battleId)
       ingestBattleEvents(next)
       return next
     },
@@ -87,6 +89,8 @@ export function SkinLab() {
   const [lastInput, setLastInput] = useState('Ready')
   const [menuOpen, setMenuOpen] = useState(false)
   const view = battle.data
+  const player = view?.player ?? routePlayer
+  const otherPlayer: DemoPlayerId = player === 'p1' ? 'p2' : 'p1'
   const showingParty = choicePanel === 'party' || view?.phase === 'switch'
   const showingMoves = choicePanel === 'moves' && view?.phase === 'move'
   const availableTeam = useMemo(
@@ -100,15 +104,15 @@ export function SkinLab() {
       if (view?.requestId == null) throw new Error('There is no open battle request.')
       return sendChoice(player, {
         requestId: view.requestId,
-        idempotencyKey: `${player}-${view.requestId}-${type}-${slot}-${crypto.randomUUID()}`,
+        idempotencyKey: `${player}-${view.requestId}-${type}-${slot}-${createClientUuid()}`,
         type,
         slot,
-      })
+      }, battleId)
     },
     onSuccess: (next) => {
       ingestBattleEvents(next)
-      queryClient.setQueryData(['demo-battle', player], next)
-      void queryClient.invalidateQueries({ queryKey: ['demo-battle'] })
+      queryClient.setQueryData(['battle', battleId ?? 'demo', routePlayer], next)
+      void queryClient.invalidateQueries({ queryKey: ['battle'] })
       setFocusedItem(0)
       setChoicePanel('commands')
     },
@@ -123,7 +127,7 @@ export function SkinLab() {
       setEventQueue([])
       setActiveEvent(null)
       setMenuOpen(false)
-      void queryClient.invalidateQueries({ queryKey: ['demo-battle'] })
+      void queryClient.invalidateQueries({ queryKey: ['battle'] })
     },
   })
 
@@ -212,11 +216,12 @@ export function SkinLab() {
   return (
     <main className={styles.lab}>
       <section className={styles.intro}>
-        <p className={styles.eyebrow}>Live integration spike</p>
-        <h1>One battle. Every input.</h1>
+        <p className={styles.eyebrow}>{isMatch ? 'Tournament match' : 'Live integration spike'}</p>
+        <h1>{isMatch ? 'Your team. Your side.' : 'One battle. Every input.'}</h1>
         <p>
-          This controller now drives a real, server-owned Generation III Pokémon Showdown battle.
-          Open a second tab as Blue to answer Red’s choices and advance the match.
+          {isMatch
+            ? 'This is your authenticated side of a server-owned Generation III battle. Your opponent has their own private view.'
+            : 'This controller drives a server-owned Generation III Pokémon Showdown battle. Open a second tab as Blue to answer Red’s choices.'}
         </p>
         <div className={styles.disclosure}>
           <strong>{view?.teamSource === 'registered-save' ? 'Registered save team loaded.' : 'Real engine, fixture teams.'}</strong>{' '}
@@ -321,13 +326,13 @@ export function SkinLab() {
           ))}
           {menuOpen && (
             <div className={styles.systemMenu} role="dialog" aria-label="Controller menu">
-              <p>Live demo battle</p>
+              <p>{isMatch ? 'Tournament battle' : 'Live demo battle'}</p>
               <strong>Playing as {view?.playerName ?? player}</strong>
-              <small>{view?.teamSource === 'registered-save' ? 'Red is using a locked team parsed from the current FireRed save.' : 'This side is using a fixture team held by the local server.'}</small>
-              <Link to={`/skin-lab?player=${otherPlayer}`}>Switch to {otherPlayer === 'p1' ? 'Red' : 'Blue'} view</Link>
-              <button disabled={reset.isPending} type="button" onClick={() => reset.mutate()}>
+              <small>{view?.teamSource === 'registered-save' ? 'This side is using its locked save-sourced team.' : 'This side is using a fixture team held by the local server.'}</small>
+              {!isMatch && <Link to={`/skin-lab?player=${otherPlayer}`}>Switch to {otherPlayer === 'p1' ? 'Red' : 'Blue'} view</Link>}
+              {!isMatch && <button disabled={reset.isPending} type="button" onClick={() => reset.mutate()}>
                 {reset.isPending ? 'Resetting…' : 'Reset battle'}
-              </button>
+              </button>}
               <Link to="/">Exit to home</Link>
               <button type="button" onClick={() => setMenuOpen(false)}>Resume</button>
             </div>
@@ -339,7 +344,7 @@ export function SkinLab() {
           <p><span>Battle state</span><strong>{view?.phase ?? battle.status}</strong></p>
           <p><span>Last event</span><strong>{activeEvent?.message ?? view?.log.at(-1) ?? 'Waiting for the engine'}</strong></p>
           <p><span>Last input</span><strong>{lastInput}</strong></p>
-          <small>A opens or submits the focused choice. B closes a choice panel; Start opens your team. Use the menu to switch player views or reset.</small>
+          <small>A opens or submits the focused choice. B closes a choice panel; Start opens your team.{!isMatch && ' Use the menu to switch player views or reset.'}</small>
         </aside>
       </section>
     </main>

@@ -1,6 +1,6 @@
 # Pocket Monster Brawl — private leagues and cartridge-powered tournaments
 
-Status: active implementation plan, updated September 11, 2026. The self-hosted LAN build includes account/session flows, league creation, username invitations, membership, tournament setup, private tournament team drafts, PostgreSQL-backed normalized save snapshots, the real FireRed/PKHeX import path, an explicit Showdown team adapter, and a server-owned Showdown battle. The supported runtime is being consolidated into Docker Compose. Durable active battles, realtime multiplayer, bracket execution, LAN discovery, and packaged releases are not complete.
+Status: active implementation plan, updated September 11, 2026. The self-hosted LAN build includes account/session flows, league creation, username invitations, membership, tournament setup, private tournament team drafts, immutable team locks, PostgreSQL-backed normalized save snapshots, the real FireRed/PKHeX import path, an explicit Showdown team adapter, and an authenticated two-player Showdown series with journaled decisions, restart reconstruction, scores, and results. Docker Compose is the verified runtime. Realtime sockets, multi-player bracket execution, LAN discovery, and packaged releases are not complete.
 
 ## Product and scope
 

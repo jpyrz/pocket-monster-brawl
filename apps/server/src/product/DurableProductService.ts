@@ -1,4 +1,4 @@
-import { createHash, randomBytes, randomUUID, scrypt as scryptCallback, timingSafeEqual } from 'node:crypto'
+import { createHash, randomBytes, randomInt, randomUUID, scrypt as scryptCallback, timingSafeEqual } from 'node:crypto'
 import { existsSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { promisify } from 'node:util'
@@ -7,17 +7,22 @@ import {
   publicProfiles,
   type AccountView,
   type AuthSessionView,
+  type DemoBattleChoice,
+  type DemoPlayerId,
   type LeagueDetailView,
   type LeagueInvitationView,
   type LeagueRole,
   type LeagueSummaryView,
+  type LockedTeamView,
   type SaveImportView,
   type TeamDraftView,
   type TeamDraftWorkspaceView,
   type TournamentRulesView,
+  type TournamentMatchView,
   type TournamentView,
 } from '@pmb/domain'
 import { ProductError, type CreateTournamentInput } from './LocalProductService.js'
+import { mapAndValidateImportedTeam, TeamAdapterError } from '../registrations/ShowdownTeamAdapter.js'
 
 const scrypt = promisify(scryptCallback)
 const sessionLifetimeMs = 7 * 24 * 60 * 60 * 1000
@@ -27,6 +32,19 @@ type DbTournament = { id: string; league_id: string; name: string; status: Tourn
 type SqlResult<T> = { rows: T[] }
 export type SqlExecutor = { query<T>(statement: string, parameters?: unknown[]): Promise<SqlResult<T>> }
 export type ProductDatabase = SqlExecutor & { transaction<T>(work: (database: SqlExecutor) => Promise<T>): Promise<T>; close(): Promise<void> }
+export type MatchBattleSetup = {
+  battleId: string
+  seriesId: string
+  tournamentId: string
+  status: 'active' | 'completed'
+  seed: [number, number, number, number]
+  engineVersion: string
+  formatId: 'gen3customgame'
+  player: DemoPlayerId
+  playerOne: { id: string; name: string; packedTeam: string; registrationId: string }
+  playerTwo: { id: string; name: string; packedTeam: string; registrationId: string }
+  decisions: Array<{ userId: string; player: DemoPlayerId; choice: DemoBattleChoice }>
+}
 function iso(value: Date | string) {
   return value instanceof Date ? value.toISOString() : new Date(value).toISOString()
 }
@@ -135,7 +153,10 @@ export class DurableProductService {
     if (!row) throw new ProductError('League not found.', 404)
     const members = await this.db.query<DbUser & { role: LeagueRole; joined_at: Date | string; team_status: 'not-started' | 'drafting' | 'submitted' }>(
       `select u.*, m.role, m.joined_at,
-       case when exists(select 1 from team_drafts td join tournaments t on t.id = td.tournament_id where t.league_id = m.league_id and td.user_id = m.user_id) then 'drafting' else 'not-started' end as team_status
+       case
+       when exists(select 1 from registered_team_versions r join tournaments t on t.id = r.tournament_id where t.league_id = m.league_id and r.user_id = m.user_id) then 'submitted'
+       when exists(select 1 from team_drafts td join tournaments t on t.id = td.tournament_id where t.league_id = m.league_id and td.user_id = m.user_id) then 'drafting'
+       else 'not-started' end as team_status
        from league_memberships m join users u on u.id = m.user_id
        where m.league_id = $1 order by m.joined_at`,
       [leagueId],
@@ -229,6 +250,12 @@ export class DurableProductService {
   }
 
   async requireTournamentParticipant(userId: string, tournamentId: string): Promise<TournamentView> {
+    const tournament = await this.requireTournamentMember(userId, tournamentId)
+    if (tournament.status !== 'planning' && tournament.status !== 'registration-open') throw new ProductError('Team registration is closed for this tournament.', 409)
+    return tournament
+  }
+
+  async requireTournamentMember(userId: string, tournamentId: string): Promise<TournamentView> {
     const result = await this.db.query<{ league_id: string; status: TournamentView['status'] }>(
       `select t.league_id, t.status from tournaments t join league_memberships m on m.league_id = t.league_id
        where t.id = $1 and m.user_id = $2`,
@@ -236,7 +263,6 @@ export class DurableProductService {
     )
     const row = result.rows[0]
     if (!row) throw new ProductError('Tournament not found.', 404)
-    if (row.status !== 'planning' && row.status !== 'registration-open') throw new ProductError('Team registration is closed for this tournament.', 409)
     return (await this.tournament(tournamentId))!
   }
 
@@ -268,6 +294,11 @@ export class DurableProductService {
   }
 
   async persistTeamDraft(userId: string, tournamentId: string, draft: TeamDraftView) {
+    const locked = await this.db.query(
+      'select 1 from registered_team_versions where tournament_id = $1 and user_id = $2 limit 1',
+      [tournamentId, userId],
+    )
+    if (locked.rows.length) throw new ProductError('This team is locked and can no longer be edited.', 409)
     const snapshots = await this.db.query<{ id: string; fingerprint: string }>(
       'select id, fingerprint from pokemon_snapshots where save_import_id = $1 and owner_id = $2',
       [draft.uploadId, userId],
@@ -311,6 +342,251 @@ export class DurableProductService {
         normalization: { startsFullyHealed: true, movePp: 'showdown-default-maximum', sourceSaveModified: false },
       },
     }
+  }
+
+  async getLockedTeam(userId: string, tournamentId: string): Promise<LockedTeamView | null> {
+    const result = await this.db.query<{
+      id: string; locked_at: Date | string; pokemon_count: number | string
+    }>(
+      `select r.id, r.locked_at, jsonb_array_length(d.pokemon_snapshot_ids)::int as pokemon_count
+       from registered_team_versions r join team_drafts d on d.id = r.source_draft_id
+       where r.tournament_id = $1 and r.user_id = $2 order by r.version desc limit 1`,
+      [tournamentId, userId],
+    )
+    const row = result.rows[0]
+    return row ? {
+      registrationId: row.id, tournamentId, lockedAt: iso(row.locked_at),
+      pokemonCount: Number(row.pokemon_count), status: 'locked',
+    } : null
+  }
+
+  async lockTeam(userId: string, tournamentId: string): Promise<LockedTeamView> {
+    await this.requireTournamentParticipant(userId, tournamentId)
+    const existing = await this.getLockedTeam(userId, tournamentId)
+    if (existing) return existing
+    const workspace = await this.loadTeamDraft(userId, tournamentId)
+    if (!workspace) throw new ProductError('Save a team draft before locking it.', 409)
+    const tournament = await this.tournament(tournamentId)
+    if (!tournament) throw new ProductError('Tournament not found.', 404)
+    if (workspace.draft.pokemon.length < 1 || workspace.draft.pokemon.length > tournament.rules.teamSize) {
+      throw new ProductError(`Choose between 1 and ${tournament.rules.teamSize} Pokémon before locking your team.`, 409)
+    }
+    let packedTeam: string
+    try {
+      packedTeam = mapAndValidateImportedTeam(workspace.draft.pokemon).packed
+    } catch (error) {
+      if (error instanceof TeamAdapterError) throw new ProductError(error.message, 422)
+      throw error
+    }
+    const registrationId = randomUUID()
+    const lockedAt = new Date().toISOString()
+    const commitment = createHash('sha256').update(packedTeam).digest('hex')
+    return this.db.transaction(async (tx) => {
+      await tx.query('select id from tournaments where id = $1 for update', [tournamentId])
+      const locked = await tx.query<{ id: string; locked_at: Date | string; pokemon_count: number | string }>(
+        `select r.id, r.locked_at, jsonb_array_length(d.pokemon_snapshot_ids)::int as pokemon_count
+         from registered_team_versions r join team_drafts d on d.id = r.source_draft_id
+         where r.tournament_id = $1 and r.user_id = $2 order by r.version desc limit 1`,
+        [tournamentId, userId],
+      )
+      const alreadyLocked = locked.rows[0]
+      if (alreadyLocked) {
+        return {
+          registrationId: alreadyLocked.id, tournamentId, lockedAt: iso(alreadyLocked.locked_at),
+          pokemonCount: Number(alreadyLocked.pokemon_count), status: 'locked' as const,
+        }
+      }
+      await tx.query(
+        `insert into registered_team_versions
+         (id, tournament_id, user_id, version, source_draft_id, packed_showdown_team, public_commitment, locked_at)
+         values ($1, $2, $3, 1, $4, $5, $6, $7)`,
+        [registrationId, tournamentId, userId, workspace.draft.draftId, packedTeam, commitment, lockedAt],
+      )
+      await tx.query(
+        `insert into tournament_entries (tournament_id, user_id, registered_team_version_id, status)
+         values ($1, $2, $3, 'locked')
+         on conflict (tournament_id, user_id) do update set
+        registered_team_version_id = excluded.registered_team_version_id, status = 'locked'`,
+        [tournamentId, userId, registrationId],
+      )
+      return {
+        registrationId, tournamentId, lockedAt,
+        pokemonCount: workspace.draft.pokemon.length, status: 'locked' as const,
+      }
+    })
+  }
+
+  async startTwoPlayerTournament(actorId: string, tournamentId: string, engineVersion: string): Promise<TournamentMatchView> {
+    const tournamentResult = await this.db.query<{ league_id: string; status: TournamentView['status'] }>(
+      'select league_id, status from tournaments where id = $1', [tournamentId],
+    )
+    const tournament = tournamentResult.rows[0]
+    if (!tournament) throw new ProductError('Tournament not found.', 404)
+    await this.requireLeagueAdmin(actorId, tournament.league_id)
+    const existing = await this.getTournamentMatch(actorId, tournamentId)
+    if (existing) return existing
+    const entrants = await this.db.query<{ user_id: string; registered_team_version_id: string | null }>(
+      `select m.user_id, e.registered_team_version_id from league_memberships m
+       left join tournament_entries e on e.tournament_id = $1 and e.user_id = m.user_id
+       where m.league_id = $2 order by m.joined_at, m.user_id`,
+      [tournamentId, tournament.league_id],
+    )
+    if (entrants.rows.length !== 2) throw new ProductError('The first playable tournament requires exactly two league members.', 409)
+    if (entrants.rows.some((entry) => !entry.registered_team_version_id)) {
+      throw new ProductError('Both players must lock their teams before the tournament can start.', 409)
+    }
+    const seriesId = randomUUID()
+    const battleId = randomUUID()
+    const seed = battleSeed()
+    await this.db.transaction(async (tx) => {
+      const lockedTournament = await tx.query<{ status: TournamentView['status'] }>(
+        'select status from tournaments where id = $1 for update', [tournamentId],
+      )
+      const existingSeries = await tx.query('select 1 from match_series where tournament_id = $1 limit 1', [tournamentId])
+      if (existingSeries.rows.length) return
+      if (lockedTournament.rows[0]?.status !== 'registration-open' && lockedTournament.rows[0]?.status !== 'teams-locked') {
+        throw new ProductError('This tournament cannot be started.', 409)
+      }
+      await tx.query("update tournaments set status = 'in-progress' where id = $1", [tournamentId])
+      await tx.query('update tournament_rule_versions set frozen_at = now() where tournament_id = $1 and frozen_at is null', [tournamentId])
+      await tx.query(
+        `insert into match_series (id, tournament_id, round, position, player_one_id, player_two_id, status)
+         values ($1, $2, 1, 1, $3, $4, 'in-progress')`,
+        [seriesId, tournamentId, entrants.rows[0]!.user_id, entrants.rows[1]!.user_id],
+      )
+      await tx.query(
+        `insert into battles (id, series_id, game_number, seed, engine_version, format_id, status, started_at)
+         values ($1, $2, 1, $3::jsonb, $4, 'gen3customgame', 'active', now())`,
+        [battleId, seriesId, JSON.stringify(seed), engineVersion],
+      )
+    })
+    return (await this.getTournamentMatch(actorId, tournamentId))!
+  }
+
+  async getTournamentMatch(userId: string, tournamentId: string): Promise<TournamentMatchView | null> {
+    const seriesResult = await this.db.query<{
+      id: string; player_one_id: string; player_two_id: string; winner_id: string | null; status: string
+    }>(
+      `select * from match_series where tournament_id = $1 and (player_one_id = $2 or player_two_id = $2)
+       order by round desc, position limit 1`,
+      [tournamentId, userId],
+    )
+    const series = seriesResult.rows[0]
+    if (!series) return null
+    const opponentId = series.player_one_id === userId ? series.player_two_id : series.player_one_id
+    const [battleResult, scoreResult, opponentResult, winnerResult, rulesResult] = await Promise.all([
+      this.db.query<{ id: string; game_number: number; status: string }>(
+        'select id, game_number, status from battles where series_id = $1 order by game_number desc limit 1', [series.id],
+      ),
+      this.db.query<{ winner_id: string; wins: number | string }>(
+        'select winner_id, count(*)::int as wins from battles where series_id = $1 and winner_id is not null group by winner_id', [series.id],
+      ),
+      this.db.query<DbUser>('select * from users where id = $1', [opponentId]),
+      series.winner_id ? this.db.query<DbUser>('select * from users where id = $1', [series.winner_id]) : Promise.resolve({ rows: [] as DbUser[] }),
+      this.db.query<{ definition: TournamentRulesView | string }>(
+        'select definition from tournament_rule_versions where tournament_id = $1 order by version desc limit 1', [tournamentId],
+      ),
+    ])
+    const battle = battleResult.rows[0]
+    const opponent = opponentResult.rows[0]
+    if (!battle || !opponent) return null
+    const wins = new Map(scoreResult.rows.map((row) => [row.winner_id, Number(row.wins)]))
+    const rules = json<TournamentRulesView>(rulesResult.rows[0]!.definition)
+    return {
+      battleId: battle.id, seriesId: series.id, tournamentId,
+      status: series.status === 'completed' ? 'completed' : 'active', gameNumber: battle.game_number,
+      bestOf: rules.bestOf, playerWins: wins.get(userId) ?? 0, opponentWins: wins.get(opponentId) ?? 0,
+      opponent: account(opponent), winner: winnerResult.rows[0] ? account(winnerResult.rows[0]) : null,
+    }
+  }
+
+  async getMatchBattleSetup(userId: string, battleId: string): Promise<MatchBattleSetup> {
+    const result = await this.db.query<{
+      battle_id: string; series_id: string; tournament_id: string; battle_status: string; seed: [number, number, number, number] | string;
+      engine_version: string; format_id: string; player_one_id: string; player_two_id: string;
+      p1_name: string; p2_name: string; p1_team: string; p2_team: string; p1_registration: string; p2_registration: string;
+    }>(
+      `select b.id as battle_id, b.series_id, s.tournament_id, b.status as battle_status, b.seed,
+       b.engine_version, b.format_id, s.player_one_id, s.player_two_id,
+       p1.display_name as p1_name, p2.display_name as p2_name,
+       r1.packed_showdown_team as p1_team, r2.packed_showdown_team as p2_team,
+       r1.id as p1_registration, r2.id as p2_registration
+       from battles b join match_series s on s.id = b.series_id
+       join users p1 on p1.id = s.player_one_id join users p2 on p2.id = s.player_two_id
+       join tournament_entries e1 on e1.tournament_id = s.tournament_id and e1.user_id = s.player_one_id
+       join tournament_entries e2 on e2.tournament_id = s.tournament_id and e2.user_id = s.player_two_id
+       join registered_team_versions r1 on r1.id = e1.registered_team_version_id
+       join registered_team_versions r2 on r2.id = e2.registered_team_version_id
+       where b.id = $1 and ($2 = s.player_one_id or $2 = s.player_two_id)`,
+      [battleId, userId],
+    )
+    const row = result.rows[0]
+    if (!row) throw new ProductError('Match not found.', 404)
+    const decisions = await this.db.query<{
+      user_id: string; player_slot: DemoPlayerId; request_id: number; idempotency_key: string; choice_type: 'move' | 'switch'; choice_slot: number
+    }>('select * from battle_decisions where battle_id = $1 order by created_at, id', [battleId])
+    return {
+      battleId: row.battle_id, seriesId: row.series_id, tournamentId: row.tournament_id,
+      status: row.battle_status === 'completed' ? 'completed' : 'active',
+      seed: json<[number, number, number, number]>(row.seed), engineVersion: row.engine_version,
+      formatId: 'gen3customgame', player: row.player_one_id === userId ? 'p1' : 'p2',
+      playerOne: { id: row.player_one_id, name: row.p1_name, packedTeam: row.p1_team, registrationId: row.p1_registration },
+      playerTwo: { id: row.player_two_id, name: row.p2_name, packedTeam: row.p2_team, registrationId: row.p2_registration },
+      decisions: decisions.rows.map((decision) => ({
+        userId: decision.user_id, player: decision.player_slot,
+        choice: { requestId: decision.request_id, idempotencyKey: decision.idempotency_key, type: decision.choice_type, slot: decision.choice_slot },
+      })),
+    }
+  }
+
+  async journalBattleChoice(userId: string, battleId: string, player: DemoPlayerId, choice: DemoBattleChoice) {
+    const inserted = await this.db.query<{ id: string }>(
+      `insert into battle_decisions (battle_id, user_id, player_slot, request_id, idempotency_key, choice_type, choice_slot)
+       values ($1, $2, $3, $4, $5, $6, $7) on conflict do nothing returning id`,
+      [battleId, userId, player, choice.requestId, choice.idempotencyKey, choice.type, choice.slot],
+    )
+    if (inserted.rows.length) return
+    const existing = await this.db.query<{ user_id: string; idempotency_key: string; choice_type: string; choice_slot: number }>(
+      'select user_id, idempotency_key, choice_type, choice_slot from battle_decisions where battle_id = $1 and player_slot = $2 and request_id = $3',
+      [battleId, player, choice.requestId],
+    )
+    const row = existing.rows[0]
+    if (!row || row.user_id !== userId || row.idempotency_key !== choice.idempotencyKey || row.choice_type !== choice.type || row.choice_slot !== choice.slot) {
+      throw new ProductError('A different choice was already accepted for this turn.', 409)
+    }
+  }
+
+  async completeBattle(battleId: string, winnerId: string, showdownLog: string, engineVersion: string) {
+    await this.db.transaction(async (tx) => {
+      const battleResult = await tx.query<{ series_id: string; game_number: number; status: string }>(
+        'select series_id, game_number, status from battles where id = $1 for update', [battleId],
+      )
+      const battle = battleResult.rows[0]
+      if (!battle || battle.status === 'completed') return
+      await tx.query(
+        "update battles set status = 'completed', winner_id = $2, showdown_log = $3, completed_at = now() where id = $1",
+        [battleId, winnerId, showdownLog],
+      )
+      const seriesResult = await tx.query<{ tournament_id: string }>('select tournament_id from match_series where id = $1', [battle.series_id])
+      const tournamentId = seriesResult.rows[0]!.tournament_id
+      const rulesResult = await tx.query<{ definition: TournamentRulesView | string }>(
+        'select definition from tournament_rule_versions where tournament_id = $1 order by version desc limit 1', [tournamentId],
+      )
+      const rules = json<TournamentRulesView>(rulesResult.rows[0]!.definition)
+      const winsResult = await tx.query<{ wins: number | string }>(
+        'select count(*)::int as wins from battles where series_id = $1 and winner_id = $2', [battle.series_id, winnerId],
+      )
+      if (Number(winsResult.rows[0]?.wins ?? 0) >= Math.ceil(rules.bestOf / 2)) {
+        await tx.query("update match_series set status = 'completed', winner_id = $2 where id = $1", [battle.series_id, winnerId])
+        await tx.query("update tournaments set status = 'completed' where id = $1", [tournamentId])
+        return
+      }
+      await tx.query(
+        `insert into battles (series_id, game_number, seed, engine_version, format_id, status, started_at)
+         values ($1, $2, $3::jsonb, $4, 'gen3customgame', 'active', now())`,
+        [battle.series_id, battle.game_number + 1, JSON.stringify(battleSeed()), engineVersion],
+      )
+    })
   }
 
   private async createSession(user: DbUser) {
@@ -396,6 +672,10 @@ export class DurableProductService {
     if (typeof value !== 'string' || Number.isNaN(Date.parse(value))) throw new ProductError(`Enter a valid ${label} date.`, 400)
     return new Date(value).toISOString()
   }
+}
+
+function battleSeed(): [number, number, number, number] {
+  return [randomInt(0x10000), randomInt(0x10000), randomInt(0x10000), randomInt(0x10000)]
 }
 
 export function migrationFolder() {

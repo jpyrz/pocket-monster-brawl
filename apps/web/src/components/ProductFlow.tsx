@@ -6,6 +6,8 @@ import type {
   LeagueDetailView,
   LeagueInvitationView,
   LeagueSummaryView,
+  TournamentMatchView,
+  TournamentView,
 } from "@pmb/domain";
 import { SaveImport } from "./SaveImport";
 import { productApi as api, useSession } from "./productApi";
@@ -459,6 +461,7 @@ export function TournamentTeamPage() {
   const tournament = league.data?.tournaments.find(
     (event) => event.id === tournamentId,
   );
+  const isAdmin = league.data?.currentUserRole === "owner" || league.data?.currentUserRole === "admin";
   if (league.isPending)
     return <main className={styles.loading}>Opening team room…</main>;
   if (!tournament) return <Navigate to={`/leagues/${leagueId}`} replace />;
@@ -469,8 +472,64 @@ export function TournamentTeamPage() {
           <Link to={`/leagues/${leagueId}`}>← {league.data?.name}</Link>
           <span>{tournament.name} · Private team room</span>
         </div>
+        <TournamentMatchPanel isAdmin={isAdmin} tournament={tournament} />
         <SaveImport tournament={tournament} />
       </div>
     </RequireSession>
+  );
+}
+
+function TournamentMatchPanel({ tournament, isAdmin }: { tournament: TournamentView; isAdmin: boolean }) {
+  const queryClient = useQueryClient();
+  const [message, setMessage] = useState("");
+  const [starting, setStarting] = useState(false);
+  const match = useQuery({
+    queryKey: ["tournament-match", tournament.id],
+    queryFn: async () => {
+      const response = await fetch(`/api/tournaments/${tournament.id}/match`, { cache: "no-store" });
+      if (response.status === 404) return null;
+      const body = await response.json() as TournamentMatchView | { error?: string };
+      if (!response.ok) throw new Error("error" in body && body.error ? body.error : "The match could not be loaded.");
+      return body as TournamentMatchView;
+    },
+    refetchInterval: 1000,
+    retry: false,
+  });
+
+  async function startTournament() {
+    setMessage("");
+    setStarting(true);
+    try {
+      const started = await api<TournamentMatchView>(`/api/tournaments/${tournament.id}/start`, { method: "POST" });
+      queryClient.setQueryData(["tournament-match", tournament.id], started);
+      await queryClient.invalidateQueries({ queryKey: ["league", tournament.leagueId] });
+    } catch (caught) {
+      setMessage(caught instanceof Error ? caught.message : "The tournament could not be started.");
+    } finally {
+      setStarting(false);
+    }
+  }
+
+  return (
+    <section className={styles.matchPanel}>
+      <div>
+        <p className={styles.eyebrow}>Event-day match</p>
+        {match.data ? <>
+          <h2>{match.data.status === "completed" ? `${match.data.winner?.displayName ?? "Winner"} won` : `Game ${match.data.gameNumber} vs. ${match.data.opponent.displayName}`}</h2>
+          <p>Series score {match.data.playerWins}–{match.data.opponentWins} · best of {match.data.bestOf}</p>
+        </> : <>
+          <h2>Waiting for locked teams</h2>
+          <p>Once both players lock their teams, the league owner can create the match.</p>
+        </>}
+        {(message || match.error) && <p className={styles.error}>{message || match.error?.message}</p>}
+      </div>
+      {match.data?.status === "active" ? (
+        <Link className={styles.matchAction} to={`/matches/${match.data.battleId}`}>Join battle →</Link>
+      ) : !match.data && isAdmin ? (
+        <button className={styles.matchAction} disabled={starting} onClick={startTournament}>
+          {starting ? "Starting…" : "Start two-player event"}
+        </button>
+      ) : null}
+    </section>
   );
 }

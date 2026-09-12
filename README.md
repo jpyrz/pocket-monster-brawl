@@ -7,7 +7,7 @@ the profile architecture is intentionally not tied to one generation.
 This repository contains the foundation, a local battle integration spike, the first real
 FireRed save-import slice, and a durable account-to-tournament journey designed for one
 self-hosted LAN server. Players connect from phones or computers on the same Wi-Fi. It does
-**not** currently support internet play or persist active Showdown battles and match results.
+**not** currently support internet play or brackets larger than the first two-player series.
 
 ## What works now
 
@@ -15,9 +15,14 @@ self-hosted LAN server. Players connect from phones or computers on the same Wi-
 - Restart-safe local account creation/sign-in with scrypt-hashed passwords and HTTP-only sessions.
 - Persistent-product UI for league creation, username lookup/invitations, joining, member
   rosters, admin tournament setup, and private per-tournament team preparation.
-- Replaceable, restart-safe private team drafts during open registration; the database schema
-  separately models immutable registered-team versions for the later event-day lock operation.
-- Fastify API with health, profile, and local demo-battle endpoints.
+- Replaceable, restart-safe private team drafts during open registration, backed by immutable
+  registered-team versions once a player locks for the event.
+- Immutable tournament team locking, a two-player event start, and authenticated match rooms
+  that restrict each account to its assigned side and locked save-sourced team.
+- PostgreSQL-journaled battle choices, pinned engine seeds/versions, restart reconstruction,
+  best-of series scores, and persisted winners.
+- Fastify API with health, profile, account, league, team-lock, authenticated-match, and
+  local demo-battle endpoints.
 - A pinned Pokémon Showdown simulator running a real server-owned Generation III custom
   battle between two validated fixture teams.
 - Pokémon Showdown's battle scene renderer, including its Generation III sprites, battle
@@ -32,8 +37,8 @@ self-hosted LAN server. Players connect from phones or computers on the same Wi-
   Pokémon instead of trusting battle attributes submitted by the browser.
 - An explicit PKHeX-to-Showdown adapter that preserves source level, species, moves, ability,
   nature, IVs, EVs, friendship, gender, shiny state, nickname, and held item.
-- Demo-battle handoff that replaces Red's fixture roster with the locked imported team while
-  starting fully healed with Showdown's default maximum move PP.
+- Tournament battle handoff that loads both players' locked imported teams while starting
+  fully healed with Showdown's default maximum move PP.
 - No raw-save persistence: uploaded bytes are passed through the local API to the local
   parser in memory, and the original source file is never written or changed.
 - Shared versioned game/rules profiles for FireRed/Gen III and a test-only Gen II fixture.
@@ -164,13 +169,13 @@ compose.yaml         Complete self-hosted LAN stack
 2. Complete and record an independent field-by-field PKHeX desktop comparison for the pilot save.
 3. Add LAN administration and authentication hardening, including account recovery, rate
    limiting, CSRF protection, and an initial host-admin bootstrap flow.
-4. Implement tournament lock/start, bracket generation, best-of series progression, and champion recording.
-5. Persist active battle decisions/results and replace polling with authenticated realtime match rooms.
+4. Expand the verified two-player series into multi-player bracket generation and progression.
+5. Replace battle polling with authenticated realtime updates and add disconnect timers/adjudication.
 
 The renderer spike currently loads the official client assets from
 `play.pokemonshowdown.com` at runtime. Pinning/self-hosting those assets and completing a
 third-party art/license review are required before a production release. See
 `THIRD_PARTY_NOTICES.md` for the current integration boundary.
 
-The PWA service worker, LAN discovery/QR screen, sockets, durable active battles, and packaged
+The PWA service worker, LAN discovery/QR screen, sockets, multi-player brackets, and packaged
 desktop installer remain unfinished. The Docker Compose stack is the current supported runtime.

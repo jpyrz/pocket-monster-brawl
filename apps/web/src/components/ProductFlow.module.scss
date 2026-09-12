@@ -43,4 +43,9 @@
 .back { display: inline-block; margin-bottom: 28px; color: var(--muted); text-decoration: none; }
 .contextBar { max-width: 1180px; margin: 18px auto 0; padding: 13px 24px; display: flex; justify-content: space-between; color: var(--muted); font-size: 12px; }
 .contextBar a { color: var(--lime); text-decoration: none; }
-@media (max-width: 760px) { .authPage, .dashboardGrid { grid-template-columns: 1fr; }.authPage { padding-top: 40px; gap: 30px; }.pageHeading { align-items: start; flex-direction: column; margin-bottom: 34px; }.leagueRow, .eventRow { align-items: flex-start; flex-direction: column; }.workspace { padding-top: 34px; }.contextBar { gap: 12px; flex-direction: column; } }
+.matchPanel { max-width: 1132px; margin: 18px auto 0; padding: 20px 24px; display: flex; justify-content: space-between; align-items: center; gap: 24px; border: 1px solid rgba(217,255,113,.25); border-radius: 14px; background: rgba(217,255,113,.055); }
+.matchPanel h2, .matchPanel p { margin: 0; }
+.matchPanel h2 { font-size: 24px; }
+.matchPanel > div > p:not(.eyebrow):not(.error) { margin-top: 6px; color: var(--muted); }
+.matchAction { flex: 0 0 auto; padding: 12px 15px; border: 0; border-radius: 9px; color: #17121c; background: var(--lime); text-decoration: none; font-weight: 850; cursor: pointer; }
+@media (max-width: 760px) { .authPage, .dashboardGrid { grid-template-columns: 1fr; }.authPage { padding-top: 40px; gap: 30px; }.pageHeading { align-items: start; flex-direction: column; margin-bottom: 34px; }.leagueRow, .eventRow, .matchPanel { align-items: flex-start; flex-direction: column; }.matchPanel { margin-inline: 16px; }.matchAction { width: 100%; text-align: center; }.workspace { padding-top: 34px; }.contextBar { gap: 12px; flex-direction: column; } }

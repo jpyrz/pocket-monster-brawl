@@ -44,6 +44,27 @@ export type TournamentView = {
   readonly createdAt: string
 }
 
+export type LockedTeamView = {
+  readonly registrationId: string
+  readonly tournamentId: string
+  readonly lockedAt: string
+  readonly pokemonCount: number
+  readonly status: 'locked'
+}
+
+export type TournamentMatchView = {
+  readonly battleId: string
+  readonly seriesId: string
+  readonly tournamentId: string
+  readonly status: 'active' | 'completed'
+  readonly gameNumber: number
+  readonly bestOf: 1 | 3 | 5
+  readonly playerWins: number
+  readonly opponentWins: number
+  readonly opponent: AccountView
+  readonly winner: AccountView | null
+}
+
 export type LeagueSummaryView = {
   readonly id: string
   readonly name: string

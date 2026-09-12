@@ -7,10 +7,12 @@ import type {
   LeagueInvitationView,
   LeagueRole,
   LeagueSummaryView,
+  LockedTeamView,
   SaveImportView,
   TeamDraftView,
   TeamDraftWorkspaceView,
   TournamentRulesView,
+  TournamentMatchView,
   TournamentView,
 } from '@pmb/domain'
 
@@ -217,12 +219,17 @@ export class LocalProductService {
   }
 
   requireTournamentParticipant(userId: string, tournamentId: string): TournamentView {
+    const tournament = this.requireTournamentMember(userId, tournamentId)
+    if (tournament.status !== 'planning' && tournament.status !== 'registration-open') {
+      throw new ProductError('Team registration is closed for this tournament.', 409)
+    }
+    return tournament
+  }
+
+  requireTournamentMember(userId: string, tournamentId: string): TournamentView {
     const tournament = this.tournaments.get(tournamentId)
     if (!tournament || !this.memberships.some((entry) => entry.leagueId === tournament.leagueId && entry.userId === userId)) {
       throw new ProductError('Tournament not found.', 404)
-    }
-    if (tournament.status !== 'planning' && tournament.status !== 'registration-open') {
-      throw new ProductError('Team registration is closed for this tournament.', 409)
     }
     return tournament
   }
@@ -246,6 +253,22 @@ export class LocalProductService {
   persistTeamDraft(_userId: string, _tournamentId: string, _draft: TeamDraftView) {}
 
   loadTeamDraft(_userId: string, _tournamentId: string): TeamDraftWorkspaceView | null {
+    return null
+  }
+
+  getLockedTeam(_userId: string, _tournamentId: string): LockedTeamView | null {
+    return null
+  }
+
+  lockTeam(_userId: string, _tournamentId: string): LockedTeamView {
+    throw new ProductError('Team locking requires the PostgreSQL product runtime.', 501)
+  }
+
+  startTwoPlayerTournament(_actorId: string, _tournamentId: string, _engineVersion: string): TournamentMatchView {
+    throw new ProductError('Tournament matches require the PostgreSQL product runtime.', 501)
+  }
+
+  getTournamentMatch(_userId: string, _tournamentId: string): TournamentMatchView | null {
     return null
   }
 

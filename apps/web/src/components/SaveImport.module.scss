@@ -286,6 +286,9 @@
 .lockedTeam p { margin: 0; display: grid; gap: 2px; }
 .lockedTeam small { color: var(--muted); font: 500 9px ui-monospace, monospace; }
 .lockedTeam > a { flex: 0 0 auto; padding: 11px 14px; border-radius: 9px; color: #211b29; background: var(--lime); text-decoration: none; font-size: 12px; font-weight: 850; }
+.lockedTeam button { min-height: 40px; padding: 9px 12px; border: 1px solid var(--line); border-radius: 8px; color: var(--ink); background: #18131e; font-weight: 750; }
+.lockedTeam button:last-child { color: #211b29; border-color: var(--lime); background: var(--lime); }
+.lockedTeam button:disabled { opacity: .42; }
 
 @media (max-width: 860px) {
   .intro { min-height: auto; grid-template-columns: 1fr; padding: 42px 0 80px; }

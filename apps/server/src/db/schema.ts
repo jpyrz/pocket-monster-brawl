@@ -157,7 +157,25 @@ export const battles = pgTable('battles', {
   gameNumber: integer('game_number').notNull(),
   winnerId: uuid('winner_id').references(() => users.id),
   showdownLog: text('showdown_log'),
+  seed: jsonb('seed').notNull(),
+  engineVersion: text('engine_version').notNull(),
+  formatId: text('format_id').notNull().default('gen3customgame'),
   status: text('status').notNull().default('pending'),
   startedAt: timestamp('started_at', { withTimezone: true }),
   completedAt: timestamp('completed_at', { withTimezone: true }),
 }, (table) => [uniqueIndex('battle_series_game').on(table.seriesId, table.gameNumber)])
+
+export const battleDecisions = pgTable('battle_decisions', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  battleId: uuid('battle_id').notNull().references(() => battles.id),
+  userId: uuid('user_id').notNull().references(() => users.id),
+  playerSlot: text('player_slot').notNull(),
+  requestId: integer('request_id').notNull(),
+  idempotencyKey: text('idempotency_key').notNull(),
+  choiceType: text('choice_type').notNull(),
+  choiceSlot: integer('choice_slot').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  uniqueIndex('battle_decision_idempotency').on(table.battleId, table.userId, table.idempotencyKey),
+  uniqueIndex('battle_decision_request').on(table.battleId, table.playerSlot, table.requestId),
+])

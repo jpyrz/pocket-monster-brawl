@@ -1,22 +1,12 @@
 import { useEffect, useId, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import type { ImportedPokemon, RegisteredTeamView, SaveImportView, StatBlock, TeamDraftView, TeamDraftWorkspaceView, TournamentView } from '@pmb/domain'
+import type { ImportedPokemon, LockedTeamView, RegisteredTeamView, SaveImportView, StatBlock, TeamDraftView, TeamDraftWorkspaceView, TournamentView } from '@pmb/domain'
+import { createClientUuid } from './clientUuid'
 import styles from './SaveImport.module.scss'
 
 const fireRedSaveSize = 128 * 1024
 
 type ImportStatus = 'idle' | 'ready' | 'importing' | 'success' | 'error'
-
-function createUploadId() {
-  if (typeof globalThis.crypto?.randomUUID === 'function') return globalThis.crypto.randomUUID()
-  const bytes = new Uint8Array(16)
-  if (typeof globalThis.crypto?.getRandomValues === 'function') globalThis.crypto.getRandomValues(bytes)
-  else for (let index = 0; index < bytes.length; index += 1) bytes[index] = Math.floor(Math.random() * 256)
-  bytes[6] = ((bytes[6] ?? 0) & 0x0f) | 0x40
-  bytes[8] = ((bytes[8] ?? 0) & 0x3f) | 0x80
-  const hex = [...bytes].map((byte) => byte.toString(16).padStart(2, '0')).join('')
-  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`
-}
 
 function wait(milliseconds: number) {
   return new Promise<void>((resolve) => window.setTimeout(resolve, milliseconds))
@@ -164,6 +154,7 @@ export function SaveImport({ tournament }: { tournament?: TournamentView }) {
   const [result, setResult] = useState<SaveImportView | null>(null)
   const [selection, setSelection] = useState<string[]>([])
   const [registration, setRegistration] = useState<RegisteredTeamView | TeamDraftView | null>(null)
+  const [lockedTeam, setLockedTeam] = useState<LockedTeamView | null>(null)
   const [registrationPending, setRegistrationPending] = useState(false)
   const [registrationError, setRegistrationError] = useState<string | null>(null)
 
@@ -192,6 +183,24 @@ export function SaveImport({ tournament }: { tournament?: TournamentView }) {
     return () => controller.abort()
   }, [tournament])
 
+  useEffect(() => {
+    if (!tournament) return
+    const controller = new AbortController()
+    void fetch(`/api/tournaments/${tournament.id}/team-lock`, { signal: controller.signal })
+      .then(async (response) => {
+        if (response.status === 404) return null
+        const body = await response.json() as LockedTeamView | { error?: string }
+        if (!response.ok) throw new Error('error' in body && body.error ? body.error : 'The team lock could not be loaded.')
+        return body as LockedTeamView
+      })
+      .then(setLockedTeam)
+      .catch((caught) => {
+        if (caught instanceof DOMException && caught.name === 'AbortError') return
+        setRegistrationError(caught instanceof Error ? caught.message : 'The team lock could not be loaded.')
+      })
+    return () => controller.abort()
+  }, [tournament])
+
   const counts = useMemo(() => {
     if (!result) return null
     return {
@@ -202,6 +211,7 @@ export function SaveImport({ tournament }: { tournament?: TournamentView }) {
   const fileIsValid = file?.name.toLowerCase().endsWith('.sav') === true && file.size === fireRedSaveSize
 
   function chooseFile(selected: File | null) {
+    if (lockedTeam) return
     setResult(null)
     setSelection([])
     setRegistration(null)
@@ -231,7 +241,7 @@ export function SaveImport({ tournament }: { tournament?: TournamentView }) {
 
     setStatus('importing')
     setError(null)
-    const uploadId = createUploadId()
+    const uploadId = createClientUuid()
     const uploadController = new AbortController()
     let timeoutId: number | undefined
     try {
@@ -273,7 +283,7 @@ export function SaveImport({ tournament }: { tournament?: TournamentView }) {
   }
 
   function togglePokemon(fingerprint: string) {
-    if (registration) return
+    if (registration || lockedTeam) return
     setRegistrationError(null)
     setSelection((current) => current.includes(fingerprint)
       ? current.filter((value) => value !== fingerprint)
@@ -281,7 +291,7 @@ export function SaveImport({ tournament }: { tournament?: TournamentView }) {
   }
 
   function moveSelection(index: number, direction: -1 | 1) {
-    if (registration) return
+    if (registration || lockedTeam) return
     setSelection((current) => {
       const target = index + direction
       if (target < 0 || target >= current.length) return current
@@ -295,7 +305,7 @@ export function SaveImport({ tournament }: { tournament?: TournamentView }) {
     })
   }
 
-  async function lockTeam() {
+  async function saveTeam() {
     if (!result || !selection.length || registrationPending || registration) return
     setRegistrationPending(true)
     setRegistrationError(null)
@@ -312,6 +322,22 @@ export function SaveImport({ tournament }: { tournament?: TournamentView }) {
       setRegistration(body as RegisteredTeamView | TeamDraftView)
     } catch (caught) {
       setRegistrationError(caught instanceof Error ? caught.message : 'The team could not be registered.')
+    } finally {
+      setRegistrationPending(false)
+    }
+  }
+
+  async function finalizeTeam() {
+    if (!tournament || lockedTeam || !registration || !('draftId' in registration)) return
+    setRegistrationPending(true)
+    setRegistrationError(null)
+    try {
+      const response = await fetch(`/api/tournaments/${tournament.id}/team-lock`, { method: 'POST' })
+      const body = await response.json() as LockedTeamView | { error?: string }
+      if (!response.ok) throw new Error('error' in body && body.error ? body.error : 'The team could not be locked.')
+      setLockedTeam(body as LockedTeamView)
+    } catch (caught) {
+      setRegistrationError(caught instanceof Error ? caught.message : 'The team could not be locked.')
     } finally {
       setRegistrationPending(false)
     }
@@ -343,6 +369,7 @@ export function SaveImport({ tournament }: { tournament?: TournamentView }) {
             className={styles.hiddenInput}
             id={inputId}
             type="file"
+            disabled={Boolean(lockedTeam)}
             accept=".sav,application/octet-stream"
             onChange={(event) => chooseFile(event.target.files?.[0] ?? null)}
           />
@@ -418,18 +445,27 @@ export function SaveImport({ tournament }: { tournament?: TournamentView }) {
             </div>
 
             {registrationError && <p className={styles.error} role="alert">{registrationError}</p>}
-            {registration ? (
+            {lockedTeam ? (
+              <div className={styles.lockedTeam}>
+                <div><span aria-hidden="true">✓</span><p><strong>Team locked for battle</strong><small>{lockedTeam.pokemonCount} Pokémon · registration {lockedTeam.registrationId.slice(0, 8)}</small></p></div>
+              </div>
+            ) : registration ? (
               <div className={styles.lockedTeam}>
                 {'draftId' in registration ? <>
                   <div><span aria-hidden="true">✓</span><p><strong>Draft saved privately</strong><small>Draft {registration.draftId.slice(0, 8)} · editable until the team lock</small></p></div>
-                  <button onClick={() => setRegistration(null)} type="button">Keep editing</button>
+                  <div>
+                    <button disabled={registrationPending} onClick={() => setRegistration(null)} type="button">Keep editing</button>
+                    <button disabled={registrationPending || selection.length < 1} onClick={finalizeTeam} type="button">
+                      {registrationPending ? 'Locking…' : 'Lock team'}
+                    </button>
+                  </div>
                 </> : <>
                   <div><span aria-hidden="true">✓</span><p><strong>Team locked</strong><small>Registration {registration.registrationId.slice(0, 8)} · a new demo battle is ready</small></p></div>
                   <Link to="/skin-lab?player=p1">Battle with this team</Link>
                 </>}
               </div>
             ) : (
-              <button className={styles.lockButton} disabled={!selection.length || registrationPending} onClick={lockTeam} type="button">
+              <button className={styles.lockButton} disabled={!selection.length || registrationPending} onClick={saveTeam} type="button">
                 {registrationPending ? 'Validating with Showdown…' : tournament ? `Save ${selection.length || ''} Pokémon as private draft` : `Lock ${selection.length || ''} Pokémon and prepare battle`}
               </button>
             )}
@@ -442,7 +478,7 @@ export function SaveImport({ tournament }: { tournament?: TournamentView }) {
                 onToggle={() => togglePokemon(pokemon.fingerprint)}
                 pokemon={pokemon}
                 selected={selection.includes(pokemon.fingerprint)}
-                selectionDisabled={Boolean(registration) || pokemon.egg || !pokemon.entityValid || !pokemon.legalityValid || pokemon.moves.length === 0 || (!selection.includes(pokemon.fingerprint) && selection.length >= teamLimit)}
+                selectionDisabled={Boolean(registration) || Boolean(lockedTeam) || pokemon.egg || !pokemon.entityValid || !pokemon.legalityValid || pokemon.moves.length === 0 || (!selection.includes(pokemon.fingerprint) && selection.length >= teamLimit)}
               />
             ))}
           </div>

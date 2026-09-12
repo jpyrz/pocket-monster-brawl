@@ -36,7 +36,7 @@ export type BattleEventView = {
 }
 
 export type DemoBattleView = {
-  readonly matchId: 'demo-gen3-battle'
+  readonly matchId: string
   readonly engineVersion: string
   readonly format: 'gen3customgame'
   readonly player: DemoPlayerId

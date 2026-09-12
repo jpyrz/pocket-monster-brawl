@@ -7,7 +7,8 @@ import {
   type DemoPlayerId,
   type TeamRegistrationRequest,
 } from '@pmb/domain'
-import { BattleRequestError, DemoBattleManager } from './battle/DemoBattleManager.js'
+import { BattleRequestError, DemoBattleManager, showdownEngineVersion } from './battle/DemoBattleManager.js'
+import { MatchBattleCoordinator } from './battle/MatchBattleCoordinator.js'
 import {
   fireRedSaveSize,
   importFireRedSave,
@@ -17,7 +18,7 @@ import {
 } from './imports/SaveParserClient.js'
 import { LocalTeamRegistry, TeamRegistrationError } from './registrations/LocalTeamRegistry.js'
 import { LocalProductService, ProductError, type CreateTournamentInput } from './product/LocalProductService.js'
-import type { DurableProductService } from './product/DurableProductService.js'
+import { DurableProductService } from './product/DurableProductService.js'
 
 function playerId(value: unknown): DemoPlayerId | null {
   return value === 'p1' || value === 'p2' ? value : null
@@ -72,6 +73,7 @@ export function buildApp(options: BuildAppOptions = {}) {
   const demoBattle = new DemoBattleManager()
   const teams = new LocalTeamRegistry()
   const product = options.productService ?? new LocalProductService()
+  const matchBattles = product instanceof DurableProductService ? new MatchBattleCoordinator(product) : null
   const runSaveImport = options.importSave ?? importFireRedSave
 
   app.addContentTypeParser(
@@ -142,6 +144,51 @@ export function buildApp(options: BuildAppOptions = {}) {
   app.post<{ Params: { leagueId: string }; Body: CreateTournamentInput }>('/api/leagues/:leagueId/tournaments', async (request) =>
     product.createTournament((await currentUser(request)).id, request.params.leagueId, request.body ?? {}))
 
+  app.get<{ Params: { tournamentId: string } }>('/api/tournaments/:tournamentId/team-lock', async (request, reply) => {
+    const user = await currentUser(request)
+    await product.requireTournamentMember(user.id, request.params.tournamentId)
+    const locked = await product.getLockedTeam(user.id, request.params.tournamentId)
+    if (!locked) return reply.code(404).send({ error: 'No team has been locked yet.' })
+    return locked
+  })
+
+  app.post<{ Params: { tournamentId: string } }>('/api/tournaments/:tournamentId/team-lock', async (request) => {
+    const user = await currentUser(request)
+    return product.lockTeam(user.id, request.params.tournamentId)
+  })
+
+  app.post<{ Params: { tournamentId: string } }>('/api/tournaments/:tournamentId/start', async (request) => {
+    const user = await currentUser(request)
+    return product.startTwoPlayerTournament(user.id, request.params.tournamentId, showdownEngineVersion)
+  })
+
+  app.get<{ Params: { tournamentId: string } }>('/api/tournaments/:tournamentId/match', async (request, reply) => {
+    const user = await currentUser(request)
+    await product.requireTournamentMember(user.id, request.params.tournamentId)
+    const match = await product.getTournamentMatch(user.id, request.params.tournamentId)
+    if (!match) return reply.code(404).send({ error: 'No match has been created yet.' })
+    return match
+  })
+
+  app.get<{ Params: { battleId: string } }>('/api/matches/:battleId', async (request) => {
+    if (!matchBattles) throw new ProductError('Authenticated matches require the PostgreSQL product runtime.', 501)
+    const user = await currentUser(request)
+    return matchBattles.getView(user.id, request.params.battleId)
+  })
+
+  app.post<{ Params: { battleId: string }; Body: unknown }>('/api/matches/:battleId/choices', async (request, reply) => {
+    if (!matchBattles) throw new ProductError('Authenticated matches require the PostgreSQL product runtime.', 501)
+    const user = await currentUser(request)
+    const choice = battleChoice(request.body)
+    if (!choice) return reply.code(400).send({ error: 'A valid battle choice is required.' })
+    try {
+      return await matchBattles.submit(user.id, request.params.battleId, choice)
+    } catch (error) {
+      if (error instanceof BattleRequestError) return reply.code(error.statusCode).send({ error: error.message })
+      throw error
+    }
+  })
+
   app.post<{ Params: { tournamentId: string }; Body: TeamRegistrationRequest }>('/api/tournaments/:tournamentId/team-draft', async (request) => {
     const user = await currentUser(request)
     await product.requireTournamentParticipant(user.id, request.params.tournamentId)
@@ -159,7 +206,7 @@ export function buildApp(options: BuildAppOptions = {}) {
 
   app.get<{ Params: { tournamentId: string } }>('/api/tournaments/:tournamentId/team-draft', async (request, reply) => {
     const user = await currentUser(request)
-    await product.requireTournamentParticipant(user.id, request.params.tournamentId)
+    await product.requireTournamentMember(user.id, request.params.tournamentId)
     const workspace = await product.loadTeamDraft(user.id, request.params.tournamentId)
       ?? teams.currentDraft(user.id, request.params.tournamentId)
     if (!workspace) return reply.code(404).send({ error: 'No team draft has been saved yet.' })
@@ -268,6 +315,7 @@ export function buildApp(options: BuildAppOptions = {}) {
   )
 
   app.addHook('onClose', async () => {
+    await matchBattles?.close()
     await demoBattle.close()
     if ('close' in product) await product.close()
   })
