@@ -8,10 +8,9 @@
   let perspective = 'p1'
 
   function resize() {
-    const scale = Math.min(window.innerWidth / 640, window.innerHeight / 360)
-    const x = (window.innerWidth - (640 * scale)) / 2
-    const y = (window.innerHeight - (360 * scale)) / 2
-    stage.style.transform = `translate(${x}px, ${y}px) scale(${scale})`
+    const scaleX = window.innerWidth / 640
+    const scaleY = window.innerHeight / 360
+    stage.style.transform = `scale(${scaleX}, ${scaleY})`
   }
 
   function showError(message) {
