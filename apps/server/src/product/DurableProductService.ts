@@ -426,15 +426,13 @@ export class DurableProductService {
     const existing = await this.getTournamentMatch(actorId, tournamentId)
     if (existing) return existing
     const entrants = await this.db.query<{ user_id: string; registered_team_version_id: string | null }>(
-      `select m.user_id, e.registered_team_version_id from league_memberships m
-       left join tournament_entries e on e.tournament_id = $1 and e.user_id = m.user_id
-       where m.league_id = $2 order by m.joined_at, m.user_id`,
+      `select e.user_id, e.registered_team_version_id from tournament_entries e
+       join league_memberships m on m.league_id = $2 and m.user_id = e.user_id
+       where e.tournament_id = $1 and e.registered_team_version_id is not null
+       order by m.joined_at, m.user_id`,
       [tournamentId, tournament.league_id],
     )
-    if (entrants.rows.length !== 2) throw new ProductError('The first playable tournament requires exactly two league members.', 409)
-    if (entrants.rows.some((entry) => !entry.registered_team_version_id)) {
-      throw new ProductError('Both players must lock their teams before the tournament can start.', 409)
-    }
+    if (entrants.rows.length !== 2) throw new ProductError('The first playable tournament requires exactly two locked teams.', 409)
     const seriesId = randomUUID()
     const battleId = randomUUID()
     const seed = battleSeed()

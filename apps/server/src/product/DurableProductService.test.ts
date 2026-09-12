@@ -107,16 +107,24 @@ describe('durable product service', () => {
       method: 'POST', url: '/api/auth/register', payload: { username: 'match_blue', displayName: 'Match Blue', password: 'viridian-city' },
     })
     const blueCookie = String(blueSignup.headers['set-cookie']).split(';')[0]!
+    const spectatorSignup = await firstApp.inject({
+      method: 'POST', url: '/api/auth/register', payload: { username: 'match_green', displayName: 'Match Green', password: 'cerulean-city' },
+    })
+    const spectatorCookie = String(spectatorSignup.headers['set-cookie']).split(';')[0]!
     const league = await firstApp.inject({ method: 'POST', url: '/api/leagues', headers: { cookie: redCookie }, payload: { name: 'Match League' } })
     const leagueId = league.json<{ id: string }>().id
     const search = await firstApp.inject({ method: 'GET', url: '/api/users/search?q=match_blue', headers: { cookie: redCookie } })
     const blueId = search.json<{ users: { id: string }[] }>().users[0]!.id
-    await firstApp.inject({
-      method: 'POST', url: `/api/leagues/${leagueId}/invitations`, headers: { cookie: redCookie }, payload: { userId: blueId },
-    })
-    const inbox = await firstApp.inject({ method: 'GET', url: '/api/invitations', headers: { cookie: blueCookie } })
-    const invitationId = inbox.json<{ invitations: { id: string }[] }>().invitations[0]!.id
-    await firstApp.inject({ method: 'POST', url: `/api/invitations/${invitationId}/accept`, headers: { cookie: blueCookie } })
+    const spectatorSearch = await firstApp.inject({ method: 'GET', url: '/api/users/search?q=match_green', headers: { cookie: redCookie } })
+    const spectatorId = spectatorSearch.json<{ users: { id: string }[] }>().users[0]!.id
+    for (const [userId, invitedCookie] of [[blueId, blueCookie], [spectatorId, spectatorCookie]] as const) {
+      await firstApp.inject({
+        method: 'POST', url: `/api/leagues/${leagueId}/invitations`, headers: { cookie: redCookie }, payload: { userId },
+      })
+      const inbox = await firstApp.inject({ method: 'GET', url: '/api/invitations', headers: { cookie: invitedCookie } })
+      const invitationId = inbox.json<{ invitations: { id: string }[] }>().invitations[0]!.id
+      await firstApp.inject({ method: 'POST', url: `/api/invitations/${invitationId}/accept`, headers: { cookie: invitedCookie } })
+    }
     const tournament = await firstApp.inject({
       method: 'POST', url: `/api/leagues/${leagueId}/tournaments`, headers: { cookie: redCookie },
       payload: { name: 'Match Cup', bestOf: 1, teamSize: 1 },
