@@ -269,6 +269,7 @@ export function CupsPage() {
 export function PlayerPage() {
   const queryClient = useQueryClient();
   const card = useQuery({ queryKey: ["trainer-card"], queryFn: () => api<TrainerCardView>("/api/trainer-card") });
+  const [editorOpen, setEditorOpen] = useState(false);
   const [profilePending, setProfilePending] = useState(false);
   const [profileError, setProfileError] = useState("");
 
@@ -281,6 +282,7 @@ export function PlayerPage() {
         method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ trainerSprite }),
       });
       queryClient.setQueryData(["trainer-card"], updated);
+      setEditorOpen(false);
     } catch (caught) {
       setProfileError(caught instanceof Error ? caught.message : "The trainer sprite could not be changed.");
     } finally {
@@ -297,19 +299,29 @@ export function PlayerPage() {
   return (
     <RequireSession>
       <main className={styles.workspace}>
-        <header className={styles.screenHeader}><div><h1>Trainer Card</h1><p>Official league record</p></div></header>
+        <header className={styles.screenHeader}><div><h1>Trainer Card</h1><p>Official league record</p></div><button aria-expanded={editorOpen} aria-label="Edit trainer" className={styles.iconAction} onClick={() => setEditorOpen((open) => !open)} type="button"><GameIcon name="edit" /><span>Edit</span></button></header>
         {card.isPending ? <div className={styles.loading}>Printing trainer card…</div> : card.data && <>
-          <section className={styles.trainerLicense}>
+          {editorOpen ? <section className={styles.avatarPanel}>
+            <header><div><small>Edit trainer</small><strong>Choose appearance</strong></div><button onClick={() => setEditorOpen(false)} type="button">Done</button></header>
+            <div>{trainerSpriteIds.map((sprite) => {
+              const label = sprite === "leaf-gen3" ? "leaf" : sprite;
+              return <button aria-label={`Use ${label} trainer sprite`} aria-pressed={card.data?.trainerSprite === sprite} disabled={profilePending} key={sprite} onClick={() => chooseTrainerSprite(sprite)} type="button"><img alt="" src={`https://play.pokemonshowdown.com/sprites/trainers/${sprite}.png`} /><span>{label}</span></button>;
+            })}</div>
+          </section> : <section className={styles.trainerLicense}>
             <header><span>POCKET MONSTER BRAWL</span><b>TRAINER</b></header>
             <div className={styles.licenseBody}>
-              <div className={styles.trainerPortrait}>
-                <img alt={`${card.data.trainerSprite} trainer`} src={`https://play.pokemonshowdown.com/sprites/trainers/${card.data.trainerSprite}.png`} />
-                <span>ID {card.data.user.id.slice(0, 8).toUpperCase()}</span>
+              <div className={styles.trainerScene}>
+                <div className={styles.trainerFigure}>
+                  <img alt={`${card.data.trainerSprite} trainer`} src={`https://play.pokemonshowdown.com/sprites/trainers/${card.data.trainerSprite}.png`} />
+                  <span>ID {card.data.user.id.slice(0, 8).toUpperCase()}</span>
+                </div>
+                {card.data.partner ? <div className={styles.partnerFigure}>
+                  <img alt={card.data.partner.pokemon.species} src={`https://play.pokemonshowdown.com/sprites/${card.data.partner.pokemon.shiny ? "ani-shiny" : "ani"}/${card.data.partner.pokemon.species.toLowerCase().replace(/[^a-z0-9]+/g, "")}.gif`} />
+                  <span><strong>{card.data.partner.pokemon.nickname || card.data.partner.pokemon.species}</strong><small>Lv.{card.data.partner.pokemon.level}</small></span>
+                </div> : <Link className={styles.emptyPartner} to="/app/box"><b>?</b><span>Choose partner</span></Link>}
               </div>
               <div className={styles.trainerIdentity}>
-                <small>Registered trainer</small>
-                <h2>{card.data.user.displayName}</h2>
-                <p>@{card.data.user.username}</p>
+                <div><small>Registered trainer</small><h2>{card.data.user.displayName}</h2><p>@{card.data.user.username}</p></div>
                 <dl>
                   <div><dt>Leagues</dt><dd>{card.data.stats.leagues}</dd></div>
                   <div><dt>Cups</dt><dd>{card.data.stats.cups}</dd></div>
@@ -318,21 +330,7 @@ export function PlayerPage() {
                 </dl>
               </div>
             </div>
-            <section className={styles.partnerPanel}>
-              {card.data.partner ? <>
-                <div><small>Partner Pokémon</small><strong>{card.data.partner.pokemon.nickname || card.data.partner.pokemon.species}</strong><span>Lv.{card.data.partner.pokemon.level} · {card.data.partner.game.replace("Pokemon ", "")}</span></div>
-                <img alt={card.data.partner.pokemon.species} src={`https://play.pokemonshowdown.com/sprites/${card.data.partner.pokemon.shiny ? "ani-shiny" : "ani"}/${card.data.partner.pokemon.species.toLowerCase().replace(/[^a-z0-9]+/g, "")}.gif`} />
-              </> : <><div><small>Partner Pokémon</small><strong>Not selected</strong><span>Choose one from your Box.</span></div><Link to="/app/box">Open Box</Link></>}
-            </section>
-          </section>
-
-          <section className={styles.avatarPanel}>
-            <header><div><small>Trainer appearance</small><strong>Choose trainer</strong></div><span>{card.data.trainerSprite === "leaf-gen3" ? "leaf" : card.data.trainerSprite}</span></header>
-            <div>{trainerSpriteIds.map((sprite) => {
-              const label = sprite === "leaf-gen3" ? "leaf" : sprite;
-              return <button aria-label={`Use ${label} trainer sprite`} aria-pressed={card.data?.trainerSprite === sprite} disabled={profilePending} key={sprite} onClick={() => chooseTrainerSprite(sprite)} type="button"><img alt="" src={`https://play.pokemonshowdown.com/sprites/trainers/${sprite}.png`} /><span>{label}</span></button>;
-            })}</div>
-          </section>
+          </section>}
           {profileError && <p className={styles.error}>{profileError}</p>}
         </>}
         <div className={styles.systemPanel}>

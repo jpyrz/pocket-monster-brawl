@@ -1,4 +1,4 @@
-type GameIconName = 'league' | 'mail' | 'player' | 'plus' | 'gear' | 'back' | 'lock' | 'play'
+type GameIconName = 'league' | 'mail' | 'player' | 'plus' | 'gear' | 'back' | 'lock' | 'play' | 'edit'
 
 const paths: Record<GameIconName, React.ReactNode> = {
   league: <><path d="M4 6.5h16v12H4z" /><path d="M7 3.5h10v3M8 10h8M8 14h5" /></>,
@@ -9,6 +9,7 @@ const paths: Record<GameIconName, React.ReactNode> = {
   back: <><path d="m14.5 5-7 7 7 7" /><path d="M8 12h12" /></>,
   lock: <><rect x="5" y="10" width="14" height="11" rx="2" /><path d="M8 10V7a4 4 0 0 1 8 0v3" /></>,
   play: <path d="m8 5 11 7-11 7z" />,
+  edit: <><path d="M4 20h4l11-11-4-4L4 16v4Z" /><path d="m13.5 6.5 4 4" /></>,
 }
 
 export function GameIcon({ name }: { name: GameIconName }) {

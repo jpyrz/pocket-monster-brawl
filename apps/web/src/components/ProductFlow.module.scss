@@ -102,36 +102,39 @@
 .trainerLicense > header { min-height: 31px; padding: 5px 8px; display: flex; align-items: center; justify-content: space-between; color: var(--gear-cream); background: var(--gear-red); border-bottom: 3px solid var(--gear-ink); }
 .trainerLicense > header span { font-size: 6px; font-weight: 900; letter-spacing: .08em; }
 .trainerLicense > header b { padding: 3px 5px; color: var(--gear-ink); border: 2px solid var(--gear-ink); background: var(--gear-yellow); font-size: 6px; }
-.licenseBody { min-height: 188px; display: grid; grid-template-columns: 47% 53%; border-bottom: 3px solid var(--gear-ink); }
-.trainerPortrait { min-width: 0; display: grid; grid-template-rows: 1fr auto; place-items: center; padding: 5px 4px 8px; border-right: 3px solid var(--gear-ink); background: radial-gradient(ellipse at 50% 80%, #bdc9ca 0 29%, transparent 30%), repeating-linear-gradient(0deg, transparent 0 5px, rgba(75,89,100,.055) 6px), #fff9df; }
-.trainerPortrait img { width: 142px; max-width: 100%; height: 142px; align-self: end; object-fit: contain; image-rendering: pixelated; }
-.trainerPortrait span { padding: 4px 5px; color: var(--gear-cream); background: var(--gear-slate-dark); font-size: 6px; font-weight: 900; }
-.trainerIdentity { min-width: 0; padding: 14px 11px 9px; }
-.trainerIdentity > small { color: var(--gear-red-dark); font-size: 6px; font-weight: 900; text-transform: uppercase; }
+.licenseBody { border-bottom: 3px solid var(--gear-ink); }
+.trainerScene { min-height: 204px; padding: 9px 8px 5px; display: grid; grid-template-columns: 43% 57%; align-items: end; overflow: hidden; position: relative; background: repeating-linear-gradient(0deg, transparent 0 5px, rgba(75,89,100,.055) 6px), linear-gradient(#fff9df 0 73%, #e8eddf 74%); }
+.trainerScene::after { width: 78%; height: 27px; content: ''; position: absolute; left: 11%; bottom: 20px; border-radius: 50%; background: #bdc9ca; opacity: .82; }
+.trainerFigure, .partnerFigure { min-width: 0; height: 190px; display: grid; grid-template-rows: 1fr auto; place-items: center; position: relative; z-index: 1; }
+.trainerFigure > img { width: 148px; max-width: 100%; height: 158px; align-self: end; object-fit: contain; image-rendering: pixelated; filter: drop-shadow(3px 4px 0 rgba(75,89,100,.22)); }
+.trainerFigure > span { padding: 4px 5px; color: var(--gear-cream); background: var(--gear-slate-dark); font-size: 6px; font-weight: 900; }
+.partnerFigure > img { width: auto; max-width: 93%; height: auto; max-height: 148px; align-self: end; object-fit: contain; image-rendering: pixelated; transform: scale(1.22); transform-origin: center bottom; filter: drop-shadow(4px 5px 0 rgba(75,89,100,.27)); }
+.partnerFigure > span { max-width: 96%; padding: 4px 6px; display: flex; align-items: baseline; gap: 5px; color: var(--gear-ink); border: 2px solid var(--gear-ink); background: var(--gear-yellow); }
+.partnerFigure strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 7px; text-transform: uppercase; }
+.partnerFigure small { flex: 0 0 auto; color: var(--gear-red-dark); font-size: 5px; font-weight: 900; }
+.emptyPartner { width: 112px; height: 128px; align-self: center; justify-self: center; display: grid; place-items: center; align-content: center; gap: 8px; position: relative; z-index: 1; color: var(--gear-slate-dark); border: 3px dashed var(--gear-slate); background: rgba(255,255,255,.45); text-decoration: none; }
+.emptyPartner b { width: 50px; height: 50px; display: grid; place-items: center; border-radius: 50%; background: var(--gear-slate); font-size: 21px; }
+.emptyPartner span { font-size: 6px; font-weight: 900; text-transform: uppercase; }
+.trainerIdentity { min-width: 0; min-height: 112px; padding: 10px; display: grid; grid-template-columns: minmax(0, .85fr) minmax(146px, 1.15fr); align-items: center; gap: 9px; border-top: 3px solid var(--gear-ink); }
+.trainerIdentity > div { min-width: 0; }
+.trainerIdentity > div > small { color: var(--gear-red-dark); font-size: 6px; font-weight: 900; text-transform: uppercase; }
 .trainerIdentity h2 { margin: 5px 0 2px; overflow-wrap: anywhere; font-size: 20px; line-height: .95; text-transform: uppercase; }
-.trainerIdentity > p { margin: 0; color: var(--gear-slate-dark); font-size: 8px; }
-.trainerIdentity dl { margin: 15px 0 0; display: grid; grid-template-columns: 1fr 1fr; border-top: 2px solid var(--gear-slate-dark); border-left: 2px solid var(--gear-slate-dark); }
+.trainerIdentity > div > p { margin: 0; color: var(--gear-slate-dark); font-size: 8px; }
+.trainerIdentity dl { margin: 0; display: grid; grid-template-columns: 1fr 1fr; border-top: 2px solid var(--gear-slate-dark); border-left: 2px solid var(--gear-slate-dark); }
 .trainerIdentity dl div { min-height: 40px; padding: 5px; display: grid; place-items: center; gap: 2px; border-right: 2px solid var(--gear-slate-dark); border-bottom: 2px solid var(--gear-slate-dark); background: var(--gear-paper); }
 .trainerIdentity dt { color: var(--gear-slate-dark); font-size: 5px; font-weight: 850; text-transform: uppercase; }
 .trainerIdentity dd { margin: 0; font-size: 11px; font-weight: 900; }
-.partnerPanel { min-height: 92px; padding: 7px 9px; display: grid; grid-template-columns: 1fr 90px; align-items: center; gap: 8px; background: var(--gear-yellow); }
-.partnerPanel > div { min-width: 0; display: grid; gap: 3px; }
-.partnerPanel small { color: var(--gear-red-dark); font-size: 6px; font-weight: 900; text-transform: uppercase; }
-.partnerPanel strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; text-transform: uppercase; }
-.partnerPanel span { color: var(--gear-slate-dark); font-size: 7px; }
-.partnerPanel img { width: 88px; height: 78px; object-fit: contain; image-rendering: pixelated; filter: drop-shadow(4px 5px 0 rgba(75,89,100,.28)); }
-.partnerPanel a { justify-self: end; padding: 7px 8px; color: var(--gear-cream); border: 2px solid var(--gear-ink); background: var(--gear-red); box-shadow: 2px 2px 0 var(--gear-red-dark); text-decoration: none; font-size: 6px; font-weight: 900; text-transform: uppercase; }
 .avatarPanel { margin-top: 9px; border: 3px solid var(--gear-ink); background: var(--gear-cream); }
 .avatarPanel > header { min-height: 39px; padding: 6px 8px; display: flex; align-items: center; justify-content: space-between; border-bottom: 3px solid var(--gear-ink); background: var(--gear-paper); }
 .avatarPanel header div { display: grid; gap: 2px; }
 .avatarPanel header small { color: var(--gear-red-dark); font-size: 5px; font-weight: 900; text-transform: uppercase; }
 .avatarPanel header strong { font-size: 9px; text-transform: uppercase; }
-.avatarPanel header > span { color: var(--gear-slate-dark); font-size: 6px; font-weight: 850; text-transform: uppercase; }
+.avatarPanel header > button { min-height: 27px; padding: 4px 7px; color: var(--gear-cream); border: 2px solid var(--gear-ink); background: var(--gear-red); font: 900 6px var(--font-mono); text-transform: uppercase; cursor: pointer; }
 .avatarPanel > div { padding: 4px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 3px; background: var(--gear-slate); }
-.avatarPanel button { min-width: 0; min-height: 75px; padding: 2px; display: grid; grid-template-rows: 55px auto; place-items: center; color: var(--gear-ink); border: 2px solid transparent; background: var(--gear-cream); cursor: pointer; }
-.avatarPanel button[aria-pressed='true'] { border-color: var(--gear-ink); background: var(--gear-yellow); box-shadow: inset 0 0 0 2px var(--gear-red); }
-.avatarPanel button img { width: 58px; height: 58px; object-fit: contain; image-rendering: pixelated; }
-.avatarPanel button span { width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 5px; font-weight: 900; text-transform: uppercase; }
+.avatarPanel > div button { min-width: 0; min-height: 75px; padding: 2px; display: grid; grid-template-rows: 55px auto; place-items: center; color: var(--gear-ink); border: 2px solid transparent; background: var(--gear-cream); cursor: pointer; }
+.avatarPanel > div button[aria-pressed='true'] { border-color: var(--gear-ink); background: var(--gear-yellow); box-shadow: inset 0 0 0 2px var(--gear-red); }
+.avatarPanel > div button img { width: 58px; height: 58px; object-fit: contain; image-rendering: pixelated; }
+.avatarPanel > div button span { width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 5px; font-weight: 900; text-transform: uppercase; }
 .systemPanel { margin-top: 9px; border: 3px solid var(--gear-ink); background: var(--gear-cream); }
 .systemPanel > div { min-height: 50px; padding: 9px 11px; display: flex; align-items: center; justify-content: space-between; gap: 14px; border-bottom: 2px solid var(--gear-slate); }
 .systemPanel span { color: var(--gear-slate-dark); font-size: 7px; font-weight: 800; text-transform: uppercase; }
@@ -154,4 +157,10 @@
   .matchAction { width: 100%; text-align: center; }
   .playerCard { grid-template-columns: 48px 1fr auto; gap: 8px; padding: 10px; }
   .playerCard > span { width: 46px; height: 46px; }
+  .trainerScene { min-height: 190px; grid-template-columns: 42% 58%; }
+  .trainerFigure, .partnerFigure { height: 176px; }
+  .trainerFigure > img { width: 134px; height: 145px; }
+  .partnerFigure > img { max-height: 137px; transform: scale(1.17); }
+  .trainerIdentity { grid-template-columns: minmax(0, .8fr) minmax(138px, 1.2fr); padding: 8px; gap: 7px; }
+  .trainerIdentity h2 { font-size: 17px; }
 }
