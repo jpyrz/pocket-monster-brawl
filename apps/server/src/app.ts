@@ -3,6 +3,7 @@ import fastifyStatic from '@fastify/static'
 import Fastify from 'fastify'
 import {
   publicProfiles,
+  type BoxTeamDraftRequest,
   type DemoBattleChoice,
   type DemoPlayerId,
   type TeamRegistrationRequest,
@@ -126,6 +127,15 @@ export function buildApp(options: BuildAppOptions = {}) {
     return session
   })
 
+  app.get<{ Querystring: { profileId?: string } }>('/api/box', async (request) => {
+    const user = await currentUser(request)
+    return product.listPokemonBox(user.id, request.query.profileId)
+  })
+
+  app.get('/api/trainer-card', async (request) => product.getTrainerCard((await currentUser(request)).id))
+  app.patch<{ Body: { trainerSprite?: unknown; partnerPokemonSnapshotId?: unknown } }>('/api/trainer-card', async (request) =>
+    product.updateTrainerCard((await currentUser(request)).id, request.body ?? {}))
+
   app.get('/api/leagues', async (request) => ({ leagues: await product.listLeagues((await currentUser(request)).id) }))
   app.post<{ Body: { name?: unknown } }>('/api/leagues', async (request) =>
     product.createLeague((await currentUser(request)).id, request.body ?? {}))
@@ -150,6 +160,16 @@ export function buildApp(options: BuildAppOptions = {}) {
     const locked = await product.getLockedTeam(user.id, request.params.tournamentId)
     if (!locked) return reply.code(404).send({ error: 'No team has been locked yet.' })
     return locked
+  })
+
+  app.get<{ Params: { tournamentId: string } }>('/api/tournaments/:tournamentId/box-team-draft', async (request) => {
+    const user = await currentUser(request)
+    return product.getBoxTeamDraftWorkspace(user.id, request.params.tournamentId)
+  })
+
+  app.post<{ Params: { tournamentId: string }; Body: BoxTeamDraftRequest }>('/api/tournaments/:tournamentId/box-team-draft', async (request) => {
+    const user = await currentUser(request)
+    return product.saveBoxTeamDraft(user.id, request.params.tournamentId, request.body?.pokemonSnapshotIds ?? [])
   })
 
   app.post<{ Params: { tournamentId: string } }>('/api/tournaments/:tournamentId/team-lock', async (request) => {
@@ -220,13 +240,14 @@ export function buildApp(options: BuildAppOptions = {}) {
       const tournamentId = typeof request.headers['x-tournament-id'] === 'string'
         ? request.headers['x-tournament-id']
         : null
-      if (!options.allowAnonymousPrototype) {
-        if (!tournamentId) throw new ProductError('Choose a tournament before importing a team.', 400)
+      if (!options.allowAnonymousPrototype && tournamentId) {
         await product.requireTournamentParticipant(user!.id, tournamentId)
       }
       const requestedId = requestedUploadId(request.headers['x-upload-id'])
-      if (user && tournamentId && requestedId) {
-        const completed = await product.loadSaveImport(user.id, tournamentId, requestedId)
+      if (user && requestedId) {
+        const completed = tournamentId
+          ? await product.loadSaveImport(user.id, tournamentId, requestedId)
+          : await product.loadOwnedSaveImport(user.id, requestedId)
         if (completed) return reply.header('cache-control', 'no-store').send(completed)
       }
       const filename = validateSaveFilename(request.headers['x-file-name'])
@@ -254,6 +275,13 @@ export function buildApp(options: BuildAppOptions = {}) {
       return reply.header('cache-control', 'no-store').send(imported)
     },
   )
+
+  app.get<{ Params: { uploadId: string } }>('/api/save-imports/:uploadId', async (request, reply) => {
+    const user = await currentUser(request)
+    const imported = await product.loadOwnedSaveImport(user.id, request.params.uploadId)
+    if (!imported) return reply.code(404).header('cache-control', 'no-store').send({ error: 'The save import is still processing.' })
+    return reply.header('cache-control', 'no-store').send(imported)
+  })
 
   app.get('/api/team-registrations/current', async (_request, reply) => {
     const registration = teams.current()

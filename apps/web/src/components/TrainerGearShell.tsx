@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import styles from './TrainerGearShell.module.scss'
 
-export type GearMode = 'league' | 'cup' | 'inbox' | 'card'
+export type GearMode = 'card' | 'box' | 'league' | 'cup'
 
 type GearControls = {
   readonly up: () => void
@@ -25,10 +25,10 @@ type TrainerGearShellProps = {
 
 const controllerPreferenceKey = 'pmb-controller-collapsed'
 const modes: ReadonlyArray<{ id: GearMode; code: string; label: string; path: string }> = [
-  { id: 'league', code: 'LG', label: 'LEAGUE', path: '/app' },
+  { id: 'card', code: 'ID', label: 'CARD', path: '/app' },
+  { id: 'box', code: 'BX', label: 'BOX', path: '/app/box' },
+  { id: 'league', code: 'LG', label: 'LEAGUE', path: '/app/leagues' },
   { id: 'cup', code: 'CP', label: 'CUP', path: '/app/cups' },
-  { id: 'inbox', code: 'IN', label: 'INBOX', path: '/app/inbox' },
-  { id: 'card', code: 'ID', label: 'CARD', path: '/app/player' },
 ]
 
 function readControllerPreference() {
@@ -52,7 +52,7 @@ function isUsable(element: HTMLElement) {
   return rect.width > 0 && rect.height > 0 && !element.hasAttribute('disabled') && element.getAttribute('aria-hidden') !== 'true'
 }
 
-export function TrainerGearShell({ children, mode = 'league', showTabs = true, controls, battle = false }: TrainerGearShellProps) {
+export function TrainerGearShell({ children, mode = 'card', showTabs = true, controls, battle = false }: TrainerGearShellProps) {
   const navigate = useNavigate()
   const location = useLocation()
   const displayRef = useRef<HTMLDivElement>(null)
@@ -109,7 +109,7 @@ export function TrainerGearShell({ children, mode = 'league', showTabs = true, c
     }
     const match = location.pathname.match(/^\/leagues\/([^/]+)\/tournaments\//)
     if (match) navigate(`/leagues/${match[1]}`)
-    else if (location.pathname.startsWith('/leagues/')) navigate('/app')
+    else if (location.pathname.startsWith('/leagues/')) navigate('/app/leagues')
     else if (location.pathname !== '/app' && location.pathname !== '/welcome') navigate('/app')
   }, [location.pathname, navigate])
 

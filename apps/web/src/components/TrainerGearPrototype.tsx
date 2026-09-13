@@ -1,14 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
 import styles from './TrainerGearPrototype.module.scss'
 
-type GearMode = 'league' | 'cup' | 'inbox' | 'card'
+type GearMode = 'card' | 'box' | 'league' | 'cup'
 type GearScreen = 'continue' | GearMode
 
 const modes: ReadonlyArray<{ id: GearMode; code: string; label: string }> = [
+  { id: 'card', code: 'ID', label: 'CARD' },
+  { id: 'box', code: 'BX', label: 'BOX' },
   { id: 'league', code: 'LG', label: 'LEAGUE' },
   { id: 'cup', code: 'CP', label: 'CUP' },
-  { id: 'inbox', code: 'IN', label: 'INBOX' },
-  { id: 'card', code: 'ID', label: 'CARD' },
 ]
 const pikachuSprite = 'https://play.pokemonshowdown.com/sprites/ani/pikachu.gif'
 const controllerPreferenceKey = 'pmb-controller-collapsed'
@@ -37,7 +37,7 @@ export function TrainerGearPrototype() {
   const [helpOpen, setHelpOpen] = useState(false)
   const [message, setMessage] = useState('')
   const [controllerCollapsed, setControllerCollapsed] = useState(readControllerPreference)
-  const selectionCount = screen === 'league' ? 3 : screen === 'inbox' || screen === 'card' ? 2 : 1
+  const selectionCount = screen === 'league' ? 3 : screen === 'box' || screen === 'card' ? 2 : 1
 
   function toggleController() {
     setControllerCollapsed((collapsed) => {
@@ -78,7 +78,7 @@ export function TrainerGearPrototype() {
   }
 
   function activate(index = selection) {
-    if (screen === 'continue') return selectMode('league')
+    if (screen === 'continue') return selectMode('card')
     if (helpOpen) return setHelpOpen(false)
     if (menuOpen) {
       return activateMenu(menuSelection)
@@ -86,9 +86,9 @@ export function TrainerGearPrototype() {
     if (screen === 'league') {
       if (index === 0) selectMode('cup')
       if (index === 1) setMessage('Trainer roster selected. 2 trainers are connected.')
-      if (index === 2) selectMode('inbox')
-    } else if (screen === 'inbox') {
-      setMessage(index === 0 ? 'There are no new league invitations.' : 'Invitation history selected.')
+      if (index === 2) setMessage('There are no new league invitations.')
+    } else if (screen === 'box') {
+      setMessage(index === 0 ? 'Pokémon Box selected.' : 'Save import selected.')
     } else if (screen === 'cup') {
       setMenuOpen(true)
       setMenuSelection(0)
@@ -101,7 +101,7 @@ export function TrainerGearPrototype() {
     if (helpOpen) return setHelpOpen(false)
     if (menuOpen) return setMenuOpen(false)
     if (screen === 'continue') return
-    if (screen !== 'league') return selectMode('league')
+    if (screen !== 'card') return selectMode('card')
     setScreen('continue')
   }
 
@@ -131,10 +131,10 @@ export function TrainerGearPrototype() {
 
         <div className={`${styles.display} ${screen === 'continue' ? styles.bootDisplay : ''}`}>
           {screen === 'continue' && <ContinueScreen onContinue={() => activate()} />}
+          {screen === 'card' && <CardScreen layoutRevision={Number(controllerCollapsed)} message={message} onActivate={activate} selection={selection} />}
+          {screen === 'box' && <BoxScreen layoutRevision={Number(controllerCollapsed)} message={message} onActivate={activate} selection={selection} />}
           {screen === 'league' && <LeagueScreen layoutRevision={Number(controllerCollapsed)} message={message} onActivate={activate} selection={selection} />}
           {screen === 'cup' && <CupScreen menuOpen={menuOpen} menuSelection={menuSelection} message={message} onActivate={() => activate()} onMenuActivate={activateMenu} />}
-          {screen === 'inbox' && <InboxScreen layoutRevision={Number(controllerCollapsed)} message={message} onActivate={activate} selection={selection} />}
-          {screen === 'card' && <CardScreen layoutRevision={Number(controllerCollapsed)} message={message} onActivate={activate} selection={selection} />}
           {helpOpen && <ControlHelp onClose={() => setHelpOpen(false)} />}
         </div>
 
@@ -198,10 +198,10 @@ function LeagueScreen({ selection, message, layoutRevision, onActivate }: Screen
   )
 }
 
-function InboxScreen({ selection, message, layoutRevision, onActivate }: ScreenProps) {
+function BoxScreen({ selection, message, layoutRevision, onActivate }: ScreenProps) {
   const rows = [
-    ['NEW INVITATIONS', 'Nothing waiting', '—'],
-    ['INVITATION HISTORY', 'No previous invitations', '›'],
+    ['POKÉMON BOX', '18 stored Pokémon', '›'],
+    ['IMPORT SAVE', 'Add Pokémon to your Box', '+'],
   ] as const
   return (
     <div className={styles.screenPage}>

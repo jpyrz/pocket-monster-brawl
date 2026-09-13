@@ -109,6 +109,13 @@ export const pokemonSnapshots = pgTable('pokemon_snapshots', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [uniqueIndex('pokemon_snapshot_import_fingerprint').on(table.saveImportId, table.fingerprint)])
 
+export const trainerProfiles = pgTable('trainer_profiles', {
+  userId: uuid('user_id').primaryKey().references(() => users.id),
+  trainerSprite: text('trainer_sprite').notNull().default('red'),
+  partnerPokemonSnapshotId: uuid('partner_pokemon_snapshot_id').references(() => pokemonSnapshots.id),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
 export const teamDrafts = pgTable('team_drafts', {
   id: uuid('id').primaryKey().defaultRandom(),
   tournamentId: uuid('tournament_id').notNull().references(() => tournaments.id),

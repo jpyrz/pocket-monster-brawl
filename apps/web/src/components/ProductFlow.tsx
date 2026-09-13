@@ -8,8 +8,11 @@ import type {
   LeagueSummaryView,
   TournamentMatchView,
   TournamentView,
+  TrainerCardView,
+  TrainerSpriteId,
 } from "@pmb/domain";
-import { SaveImport } from "./SaveImport";
+import { trainerSpriteIds } from "@pmb/domain";
+import { TournamentTeamBuilder } from "./PokemonBox";
 import { GameIcon } from "./GameIcon";
 import { productApi as api, useSession } from "./productApi";
 import styles from "./ProductFlow.module.scss";
@@ -264,8 +267,26 @@ export function CupsPage() {
 }
 
 export function PlayerPage() {
-  const session = useSession();
   const queryClient = useQueryClient();
+  const card = useQuery({ queryKey: ["trainer-card"], queryFn: () => api<TrainerCardView>("/api/trainer-card") });
+  const [profilePending, setProfilePending] = useState(false);
+  const [profileError, setProfileError] = useState("");
+
+  async function chooseTrainerSprite(trainerSprite: TrainerSpriteId) {
+    if (profilePending || card.data?.trainerSprite === trainerSprite) return;
+    setProfilePending(true);
+    setProfileError("");
+    try {
+      const updated = await api<TrainerCardView>("/api/trainer-card", {
+        method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ trainerSprite }),
+      });
+      queryClient.setQueryData(["trainer-card"], updated);
+    } catch (caught) {
+      setProfileError(caught instanceof Error ? caught.message : "The trainer sprite could not be changed.");
+    } finally {
+      setProfilePending(false);
+    }
+  }
 
   async function logout() {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -276,12 +297,44 @@ export function PlayerPage() {
   return (
     <RequireSession>
       <main className={styles.workspace}>
-        <header className={styles.screenHeader}><div><h1>Player</h1><p>Local trainer profile</p></div></header>
-        <section className={styles.playerCard}>
-          <span>{session.data?.user.displayName.slice(0, 1).toUpperCase()}</span>
-          <div><small>Trainer</small><h2>{session.data?.user.displayName}</h2><p>@{session.data?.user.username}</p></div>
-          <b>TRAINER</b>
-        </section>
+        <header className={styles.screenHeader}><div><h1>Trainer Card</h1><p>Official league record</p></div></header>
+        {card.isPending ? <div className={styles.loading}>Printing trainer card…</div> : card.data && <>
+          <section className={styles.trainerLicense}>
+            <header><span>POCKET MONSTER BRAWL</span><b>TRAINER</b></header>
+            <div className={styles.licenseBody}>
+              <div className={styles.trainerPortrait}>
+                <img alt={`${card.data.trainerSprite} trainer`} src={`https://play.pokemonshowdown.com/sprites/trainers/${card.data.trainerSprite}.png`} />
+                <span>ID {card.data.user.id.slice(0, 8).toUpperCase()}</span>
+              </div>
+              <div className={styles.trainerIdentity}>
+                <small>Registered trainer</small>
+                <h2>{card.data.user.displayName}</h2>
+                <p>@{card.data.user.username}</p>
+                <dl>
+                  <div><dt>Leagues</dt><dd>{card.data.stats.leagues}</dd></div>
+                  <div><dt>Cups</dt><dd>{card.data.stats.cups}</dd></div>
+                  <div><dt>Wins</dt><dd>{card.data.stats.wins}</dd></div>
+                  <div><dt>Losses</dt><dd>{card.data.stats.losses}</dd></div>
+                </dl>
+              </div>
+            </div>
+            <section className={styles.partnerPanel}>
+              {card.data.partner ? <>
+                <div><small>Partner Pokémon</small><strong>{card.data.partner.pokemon.nickname || card.data.partner.pokemon.species}</strong><span>Lv.{card.data.partner.pokemon.level} · {card.data.partner.game.replace("Pokemon ", "")}</span></div>
+                <img alt={card.data.partner.pokemon.species} src={`https://play.pokemonshowdown.com/sprites/${card.data.partner.pokemon.shiny ? "ani-shiny" : "ani"}/${card.data.partner.pokemon.species.toLowerCase().replace(/[^a-z0-9]+/g, "")}.gif`} />
+              </> : <><div><small>Partner Pokémon</small><strong>Not selected</strong><span>Choose one from your Box.</span></div><Link to="/app/box">Open Box</Link></>}
+            </section>
+          </section>
+
+          <section className={styles.avatarPanel}>
+            <header><div><small>Trainer appearance</small><strong>Choose trainer</strong></div><span>{card.data.trainerSprite === "leaf-gen3" ? "leaf" : card.data.trainerSprite}</span></header>
+            <div>{trainerSpriteIds.map((sprite) => {
+              const label = sprite === "leaf-gen3" ? "leaf" : sprite;
+              return <button aria-label={`Use ${label} trainer sprite`} aria-pressed={card.data?.trainerSprite === sprite} disabled={profilePending} key={sprite} onClick={() => chooseTrainerSprite(sprite)} type="button"><img alt="" src={`https://play.pokemonshowdown.com/sprites/trainers/${sprite}.png`} /><span>{label}</span></button>;
+            })}</div>
+          </section>
+          {profileError && <p className={styles.error}>{profileError}</p>}
+        </>}
         <div className={styles.systemPanel}>
           <div><span>Server</span><strong>Connected</strong></div>
           <div><span>Save handling</span><strong>Raw files never retained</strong></div>
@@ -357,11 +410,11 @@ export function LeaguePage() {
 
   if (league.isPending)
     return <main className={styles.loading}>Opening league…</main>;
-  if (!league.data) return <Navigate to="/app" replace />;
+  if (!league.data) return <Navigate to="/app/leagues" replace />;
   return (
     <RequireSession>
       <main className={styles.workspace}>
-        <Link className={styles.back} to="/app"><GameIcon name="back" /> Leagues</Link>
+        <Link className={styles.back} to="/app/leagues"><GameIcon name="back" /> Leagues</Link>
         <header className={styles.leagueHeader}>
           <div>
             <h1>{league.data.name}</h1>
@@ -478,7 +531,7 @@ export function TournamentTeamPage() {
           <span>{tournament.name} · Private team</span>
         </div>
         <TournamentMatchPanel isAdmin={isAdmin} tournament={tournament} />
-        <SaveImport tournament={tournament} />
+        <TournamentTeamBuilder tournament={tournament} />
       </div>
     </RequireSession>
   );

@@ -14,6 +14,65 @@ afterEach(async () => {
 })
 
 describe('durable product service', () => {
+  it('stores global Box Pokémon, trainer personalization, and a tournament team built from owned snapshots', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'pmb-pglite-'))
+    tempDirectories.push(directory)
+    const imported: SaveImportView = {
+      uploadId: '30000000-0000-4000-8000-000000000003', filename: 'Pokemon FireRed.sav',
+      sourceDevice: 'Analogue Pocket', profileId: 'firered-gen3-v1', importedAt: '2026-09-13T12:00:00.000Z',
+      parserVersion: 'test-parser', sha256: 'box-save-hash', size: 131_072, game: 'Pokemon FireRed', gameVersion: 'FR',
+      language: 'English', checksumsValid: true, trainer: { name: 'RED', tid: 1, sid: 2, playTime: '10:00:00' },
+      pokemon: [importedMankey], warnings: [], rawSaveStored: false,
+    }
+    const service = await createTestDurableProductService(directory)
+    const app = buildApp({ productService: service, importSave: async () => imported })
+    const signup = await app.inject({
+      method: 'POST', url: '/api/auth/register',
+      payload: { username: 'box_red', displayName: 'Box Red', password: 'pallet-town' },
+    })
+    const cookie = String(signup.headers['set-cookie']).split(';')[0]!
+    const upload = await app.inject({
+      method: 'POST', url: '/api/save-imports/fire-red',
+      headers: {
+        cookie, 'content-type': 'application/octet-stream', 'x-file-name': 'Pokemon%20FireRed.sav',
+        'x-upload-id': imported.uploadId,
+      },
+      payload: Buffer.alloc(131_072),
+    })
+    expect(upload.statusCode).toBe(200)
+
+    const box = await app.inject({ method: 'GET', url: '/api/box', headers: { cookie } })
+    expect(box.statusCode).toBe(200)
+    const snapshotId = box.json<{ pokemon: { snapshotId: string }[] }>().pokemon[0]!.snapshotId
+    expect(box.json()).toMatchObject({
+      imports: [{ game: 'Pokemon FireRed', pokemonCount: 1 }],
+      pokemon: [{ snapshotId, pokemon: { species: 'Mankey', level: 11 } }],
+    })
+
+    const card = await app.inject({
+      method: 'PATCH', url: '/api/trainer-card', headers: { cookie },
+      payload: { trainerSprite: 'leaf-gen3', partnerPokemonSnapshotId: snapshotId },
+    })
+    expect(card.json()).toMatchObject({
+      trainerSprite: 'leaf-gen3', partner: { snapshotId, pokemon: { species: 'Mankey' } },
+      stats: { leagues: 0, cups: 0, wins: 0, losses: 0 },
+    })
+
+    const league = await app.inject({ method: 'POST', url: '/api/leagues', headers: { cookie }, payload: { name: 'Box League' } })
+    const tournament = await app.inject({
+      method: 'POST', url: `/api/leagues/${league.json<{ id: string }>().id}/tournaments`, headers: { cookie },
+      payload: { name: 'Box Cup', teamSize: 1 },
+    })
+    const tournamentId = tournament.json<{ id: string }>().id
+    const draft = await app.inject({
+      method: 'POST', url: `/api/tournaments/${tournamentId}/box-team-draft`, headers: { cookie },
+      payload: { pokemonSnapshotIds: [snapshotId] },
+    })
+    expect(draft.json()).toMatchObject({ draft: { pokemon: [{ species: 'Mankey' }] }, draftPokemonSnapshotIds: [snapshotId] })
+    expect((await app.inject({ method: 'POST', url: `/api/tournaments/${tournamentId}/team-lock`, headers: { cookie } })).statusCode).toBe(200)
+    await app.close()
+  })
+
   it('retains sessions and leagues across a complete API and database restart', async () => {
     const directory = await mkdtemp(join(tmpdir(), 'pmb-pglite-'))
     tempDirectories.push(directory)

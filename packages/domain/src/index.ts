@@ -1,4 +1,5 @@
 export * from './battle.js'
+export * from './box.js'
 export * from './imports.js'
 export * from './leagues.js'
 export * from './pokemon.js'

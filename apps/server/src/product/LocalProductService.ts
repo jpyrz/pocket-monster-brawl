@@ -3,18 +3,24 @@ import { promisify } from 'node:util'
 import type {
   AccountView,
   AuthSessionView,
+  BoxPokemonView,
+  BoxTeamDraftWorkspaceView,
   LeagueDetailView,
   LeagueInvitationView,
   LeagueRole,
   LeagueSummaryView,
   LockedTeamView,
+  PokemonBoxView,
   SaveImportView,
   TeamDraftView,
   TeamDraftWorkspaceView,
   TournamentRulesView,
   TournamentMatchView,
   TournamentView,
+  TrainerCardView,
+  TrainerSpriteId,
 } from '@pmb/domain'
+import { trainerSpriteIds } from '@pmb/domain'
 
 const scrypt = promisify(scryptCallback)
 
@@ -66,6 +72,9 @@ export class LocalProductService {
   private tournaments = new Map<string, TournamentView>()
   private teamStatuses = new Map<string, 'not-started' | 'drafting' | 'submitted'>()
   private saveImports = new Map<string, { userId: string; tournamentId: string | null; data: SaveImportView }>()
+  private pokemonSnapshots = new Map<string, BoxPokemonView & { userId: string }>()
+  private trainerProfiles = new Map<string, { trainerSprite: TrainerSpriteId; partnerPokemonSnapshotId: string | null }>()
+  private boxDrafts = new Map<string, { draft: TeamDraftView; snapshotIds: string[] }>()
 
   async registerAccount(input: { username?: unknown; displayName?: unknown; password?: unknown }) {
     const username = this.validateUsername(input.username)
@@ -110,6 +119,59 @@ export class LocalProductService {
     const session = this.session(token)
     if (!session) throw new ProductError('Sign in to continue.', 401)
     return session.user
+  }
+
+  listPokemonBox(userId: string, profileId?: string): PokemonBoxView {
+    const imports = [...this.saveImports.values()]
+      .filter((entry) => entry.userId === userId && (!profileId || entry.data.profileId === profileId))
+      .map((entry) => entry.data)
+      .filter((item, index, values) => values.findIndex((candidate) => candidate.sha256 === item.sha256) === index)
+      .map((item) => ({
+        uploadId: item.uploadId, profileId: item.profileId, game: item.game, gameVersion: item.gameVersion,
+        filename: item.filename, importedAt: item.importedAt, trainerName: item.trainer.name, pokemonCount: item.pokemon.length,
+      }))
+    const pokemon = [...this.pokemonSnapshots.values()]
+      .filter((entry) => entry.userId === userId && (!profileId || entry.profileId === profileId))
+      .filter((item, index, values) => values.findIndex((candidate) => candidate.pokemon.fingerprint === item.pokemon.fingerprint) === index)
+      .map(({ userId: _userId, ...item }) => structuredClone(item))
+    return { imports, pokemon }
+  }
+
+  getTrainerCard(userId: string): TrainerCardView {
+    const account = this.accounts.get(userId)
+    if (!account) throw new ProductError('Trainer not found.', 404)
+    const profile = this.trainerProfiles.get(userId)
+    const partner = profile?.partnerPokemonSnapshotId ? this.pokemonSnapshots.get(profile.partnerPokemonSnapshotId) : undefined
+    const leagues = this.memberships.filter((entry) => entry.userId === userId)
+    return {
+      user: publicAccount(account),
+      trainerSprite: profile?.trainerSprite ?? 'red',
+      partner: partner ? (({ userId: _userId, ...item }) => structuredClone(item))(partner) : null,
+      stats: {
+        leagues: leagues.length,
+        cups: [...this.tournaments.values()].filter((event) => leagues.some((membership) => membership.leagueId === event.leagueId)).length,
+        wins: 0,
+        losses: 0,
+      },
+    }
+  }
+
+  updateTrainerCard(userId: string, input: { trainerSprite?: unknown; partnerPokemonSnapshotId?: unknown }): TrainerCardView {
+    const current = this.trainerProfiles.get(userId) ?? { trainerSprite: 'red' as const, partnerPokemonSnapshotId: null }
+    if (input.trainerSprite !== undefined) {
+      if (typeof input.trainerSprite !== 'string' || !trainerSpriteIds.includes(input.trainerSprite as TrainerSpriteId)) {
+        throw new ProductError('Choose a supported trainer sprite.', 400)
+      }
+      current.trainerSprite = input.trainerSprite as TrainerSpriteId
+    }
+    if (input.partnerPokemonSnapshotId !== undefined) {
+      if (input.partnerPokemonSnapshotId !== null && (
+        typeof input.partnerPokemonSnapshotId !== 'string' || this.pokemonSnapshots.get(input.partnerPokemonSnapshotId)?.userId !== userId
+      )) throw new ProductError('That Pokémon is not in your Box.', 404)
+      current.partnerPokemonSnapshotId = input.partnerPokemonSnapshotId as string | null
+    }
+    this.trainerProfiles.set(userId, current)
+    return this.getTrainerCard(userId)
   }
 
   createLeague(userId: string, input: { name?: unknown }): LeagueDetailView {
@@ -241,6 +303,14 @@ export class LocalProductService {
 
   persistSaveImport(userId: string, tournamentId: string | null, saveImport: SaveImportView) {
     this.saveImports.set(saveImport.uploadId, { userId, tournamentId, data: structuredClone(saveImport) })
+    for (const pokemon of saveImport.pokemon) {
+      const snapshotId = randomUUID()
+      this.pokemonSnapshots.set(snapshotId, {
+        userId, snapshotId, uploadId: saveImport.uploadId, profileId: saveImport.profileId,
+        game: saveImport.game, gameVersion: saveImport.gameVersion, filename: saveImport.filename,
+        importedAt: saveImport.importedAt, pokemon: structuredClone(pokemon),
+      })
+    }
   }
 
   loadSaveImport(userId: string, tournamentId: string, uploadId: string): SaveImportView | null {
@@ -248,6 +318,43 @@ export class LocalProductService {
     return saved?.userId === userId && saved.tournamentId === tournamentId
       ? structuredClone(saved.data)
       : null
+  }
+
+  loadOwnedSaveImport(userId: string, uploadId: string): SaveImportView | null {
+    const saved = this.saveImports.get(uploadId)
+    return saved?.userId === userId ? structuredClone(saved.data) : null
+  }
+
+  saveBoxTeamDraft(userId: string, tournamentId: string, snapshotIds: readonly string[]): BoxTeamDraftWorkspaceView {
+    const tournament = this.requireTournamentParticipant(userId, tournamentId)
+    const box = this.listPokemonBox(userId, tournament.rules.gameProfileId)
+    const byId = new Map(box.pokemon.map((item) => [item.snapshotId, item]))
+    const selected = snapshotIds.map((id) => byId.get(id))
+    if (!snapshotIds.length || snapshotIds.length > tournament.rules.teamSize || selected.some((item) => !item)) {
+      throw new ProductError('Choose eligible Pokémon from your Box.', 422)
+    }
+    const primary = selected[0]!
+    const imported = this.saveImports.get(primary.uploadId)!.data
+    const draft: TeamDraftView = {
+      draftId: randomUUID(), uploadId: primary.uploadId, tournamentId, profileId: imported.profileId,
+      trainerName: imported.trainer.name, savedAt: now(), status: 'draft',
+      pokemon: selected.map((item) => item!.pokemon),
+      normalization: { startsFullyHealed: true, movePp: 'showdown-default-maximum', sourceSaveModified: false },
+    }
+    this.boxDrafts.set(`${tournamentId}:${userId}`, { draft, snapshotIds: [...snapshotIds] })
+    this.markTeamDraft(userId, tournamentId)
+    return { tournament, eligiblePokemon: box.pokemon, draft, draftPokemonSnapshotIds: [...snapshotIds] }
+  }
+
+  getBoxTeamDraftWorkspace(userId: string, tournamentId: string): BoxTeamDraftWorkspaceView {
+    const tournament = this.requireTournamentMember(userId, tournamentId)
+    const saved = this.boxDrafts.get(`${tournamentId}:${userId}`)
+    return {
+      tournament,
+      eligiblePokemon: this.listPokemonBox(userId, tournament.rules.gameProfileId).pokemon,
+      draft: saved?.draft ?? null,
+      draftPokemonSnapshotIds: saved?.snapshotIds ?? [],
+    }
   }
 
   persistTeamDraft(_userId: string, _tournamentId: string, _draft: TeamDraftView) {}

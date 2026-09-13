@@ -5,21 +5,28 @@ import { promisify } from 'node:util'
 import { Pool } from 'pg'
 import {
   publicProfiles,
+  trainerSpriteIds,
   type AccountView,
   type AuthSessionView,
+  type BoxPokemonView,
+  type BoxTeamDraftWorkspaceView,
   type DemoBattleChoice,
   type DemoPlayerId,
+  type ImportedPokemon,
   type LeagueDetailView,
   type LeagueInvitationView,
   type LeagueRole,
   type LeagueSummaryView,
   type LockedTeamView,
+  type PokemonBoxView,
   type SaveImportView,
   type TeamDraftView,
   type TeamDraftWorkspaceView,
   type TournamentRulesView,
   type TournamentMatchView,
   type TournamentView,
+  type TrainerCardView,
+  type TrainerSpriteId,
 } from '@pmb/domain'
 import { ProductError, type CreateTournamentInput } from './LocalProductService.js'
 import { mapAndValidateImportedTeam, TeamAdapterError } from '../registrations/ShowdownTeamAdapter.js'
@@ -29,6 +36,12 @@ const sessionLifetimeMs = 7 * 24 * 60 * 60 * 1000
 
 type DbUser = { id: string; username: string; display_name: string; password_hash: string; created_at: Date | string }
 type DbTournament = { id: string; league_id: string; name: string; status: TournamentView['status']; starts_at: Date | string | null; team_lock_at: Date | string | null; created_at: Date | string }
+type DbBoxPokemon = {
+  snapshot_id: string
+  save_import_id: string
+  pokemon_data: ImportedPokemon | string
+  import_data: SaveImportView | string
+}
 type SqlResult<T> = { rows: T[] }
 export type SqlExecutor = { query<T>(statement: string, parameters?: unknown[]): Promise<SqlResult<T>> }
 export type ProductDatabase = SqlExecutor & { transaction<T>(work: (database: SqlExecutor) => Promise<T>): Promise<T>; close(): Promise<void> }
@@ -59,6 +72,20 @@ function tokenHash(token: string) {
 
 function json<T>(value: T | string): T {
   return typeof value === 'string' ? JSON.parse(value) as T : value
+}
+
+function boxPokemon(row: DbBoxPokemon): BoxPokemonView {
+  const imported = json<SaveImportView>(row.import_data)
+  return {
+    snapshotId: row.snapshot_id,
+    uploadId: row.save_import_id,
+    profileId: imported.profileId,
+    game: imported.game,
+    gameVersion: imported.gameVersion,
+    filename: imported.filename,
+    importedAt: imported.importedAt,
+    pokemon: json<ImportedPokemon>(row.pokemon_data),
+  }
 }
 
 export class DurableProductService {
@@ -116,6 +143,128 @@ export class DurableProductService {
     const active = await this.session(token)
     if (!active) throw new ProductError('Sign in to continue.', 401)
     return active.user
+  }
+
+  async listPokemonBox(userId: string, profileId?: string): Promise<PokemonBoxView> {
+    const parameters = profileId ? [userId, profileId] : [userId]
+    const profileClause = profileId ? 'and si.game_profile_id = $2' : ''
+    const [importResult, pokemonResult] = await Promise.all([
+      this.db.query<{ data: SaveImportView | string }>(
+        `select distinct on (si.source_sha256) si.data
+         from save_imports si where si.user_id = $1 ${profileClause}
+         order by si.source_sha256, si.imported_at desc`,
+        parameters,
+      ),
+      this.db.query<DbBoxPokemon>(
+        `select distinct on (ps.fingerprint) ps.id as snapshot_id, ps.save_import_id,
+         ps.data as pokemon_data, si.data as import_data
+         from pokemon_snapshots ps join save_imports si on si.id = ps.save_import_id
+         where ps.owner_id = $1 ${profileClause}
+         order by ps.fingerprint, si.imported_at desc, ps.created_at desc`,
+        parameters,
+      ),
+    ])
+    const imports = importResult.rows
+      .map((row) => json<SaveImportView>(row.data))
+      .sort((left, right) => right.importedAt.localeCompare(left.importedAt))
+      .map((item) => ({
+        uploadId: item.uploadId,
+        profileId: item.profileId,
+        game: item.game,
+        gameVersion: item.gameVersion,
+        filename: item.filename,
+        importedAt: item.importedAt,
+        trainerName: item.trainer.name,
+        pokemonCount: item.pokemon.length,
+      }))
+    const pokemon = pokemonResult.rows.map(boxPokemon).sort((left, right) => {
+      const importOrder = right.importedAt.localeCompare(left.importedAt)
+      if (importOrder) return importOrder
+      if (left.pokemon.source.kind !== right.pokemon.source.kind) return left.pokemon.source.kind === 'party' ? -1 : 1
+      return (left.pokemon.source.box ?? -1) - (right.pokemon.source.box ?? -1) || left.pokemon.source.slot - right.pokemon.source.slot
+    })
+    return { imports, pokemon }
+  }
+
+  async getTrainerCard(userId: string): Promise<TrainerCardView> {
+    const [userResult, profileResult, leagueResult, cupResult, recordResult] = await Promise.all([
+      this.db.query<DbUser>('select * from users where id = $1', [userId]),
+      this.db.query<{ trainer_sprite: TrainerSpriteId; partner_pokemon_snapshot_id: string | null }>(
+        'select trainer_sprite, partner_pokemon_snapshot_id from trainer_profiles where user_id = $1', [userId],
+      ),
+      this.db.query<{ count: number | string }>('select count(*)::int as count from league_memberships where user_id = $1', [userId]),
+      this.db.query<{ count: number | string }>(
+        `select count(distinct t.id)::int as count from tournaments t
+         join league_memberships m on m.league_id = t.league_id where m.user_id = $1`, [userId],
+      ),
+      this.db.query<{ wins: number | string; losses: number | string }>(
+        `select
+         count(*) filter (where winner_id = $1)::int as wins,
+         count(*) filter (where winner_id is not null and winner_id <> $1)::int as losses
+         from match_series where status = 'completed' and (player_one_id = $1 or player_two_id = $1)`, [userId],
+      ),
+    ])
+    const user = userResult.rows[0]
+    if (!user) throw new ProductError('Trainer not found.', 404)
+    const profile = profileResult.rows[0]
+    let partner: BoxPokemonView | null = null
+    if (profile?.partner_pokemon_snapshot_id) {
+      const partnerResult = await this.db.query<DbBoxPokemon>(
+        `select ps.id as snapshot_id, ps.save_import_id, ps.data as pokemon_data, si.data as import_data
+         from pokemon_snapshots ps join save_imports si on si.id = ps.save_import_id
+         where ps.id = $1 and ps.owner_id = $2`,
+        [profile.partner_pokemon_snapshot_id, userId],
+      )
+      if (partnerResult.rows[0]) partner = boxPokemon(partnerResult.rows[0])
+    }
+    const record = recordResult.rows[0]
+    return {
+      user: account(user),
+      trainerSprite: profile?.trainer_sprite ?? 'red',
+      partner,
+      stats: {
+        leagues: Number(leagueResult.rows[0]?.count ?? 0),
+        cups: Number(cupResult.rows[0]?.count ?? 0),
+        wins: Number(record?.wins ?? 0),
+        losses: Number(record?.losses ?? 0),
+      },
+    }
+  }
+
+  async updateTrainerCard(userId: string, input: { trainerSprite?: unknown; partnerPokemonSnapshotId?: unknown }): Promise<TrainerCardView> {
+    const current = await this.db.query<{ trainer_sprite: TrainerSpriteId; partner_pokemon_snapshot_id: string | null }>(
+      'select trainer_sprite, partner_pokemon_snapshot_id from trainer_profiles where user_id = $1', [userId],
+    )
+    const currentProfile = current.rows[0]
+    let trainerSprite = currentProfile?.trainer_sprite ?? 'red'
+    if (input.trainerSprite !== undefined) {
+      if (typeof input.trainerSprite !== 'string' || !trainerSpriteIds.includes(input.trainerSprite as TrainerSpriteId)) {
+        throw new ProductError('Choose a supported trainer sprite.', 400)
+      }
+      trainerSprite = input.trainerSprite as TrainerSpriteId
+    }
+    let partnerPokemonSnapshotId = currentProfile?.partner_pokemon_snapshot_id ?? null
+    if (input.partnerPokemonSnapshotId !== undefined) {
+      if (input.partnerPokemonSnapshotId === null) {
+        partnerPokemonSnapshotId = null
+      } else {
+        if (typeof input.partnerPokemonSnapshotId !== 'string' || !/^[0-9a-f-]{36}$/i.test(input.partnerPokemonSnapshotId)) {
+          throw new ProductError('Choose a Pokémon from your Box.', 400)
+        }
+        const owned = await this.db.query('select 1 from pokemon_snapshots where id = $1 and owner_id = $2', [input.partnerPokemonSnapshotId, userId])
+        if (!owned.rows.length) throw new ProductError('That Pokémon is not in your Box.', 404)
+        partnerPokemonSnapshotId = input.partnerPokemonSnapshotId
+      }
+    }
+    await this.db.query(
+      `insert into trainer_profiles (user_id, trainer_sprite, partner_pokemon_snapshot_id, updated_at)
+       values ($1, $2, $3, now()) on conflict (user_id) do update set
+       trainer_sprite = excluded.trainer_sprite,
+       partner_pokemon_snapshot_id = excluded.partner_pokemon_snapshot_id,
+       updated_at = now()`,
+      [userId, trainerSprite, partnerPokemonSnapshotId],
+    )
+    return this.getTrainerCard(userId)
   }
 
   async createLeague(userId: string, input: { name?: unknown }): Promise<LeagueDetailView> {
@@ -291,6 +440,89 @@ export class DurableProductService {
       [uploadId, userId, tournamentId],
     )
     return result.rows[0] ? json<SaveImportView>(result.rows[0].data) : null
+  }
+
+  async loadOwnedSaveImport(userId: string, uploadId: string): Promise<SaveImportView | null> {
+    const result = await this.db.query<{ data: SaveImportView | string }>(
+      'select data from save_imports where id = $1 and user_id = $2', [uploadId, userId],
+    )
+    return result.rows[0] ? json<SaveImportView>(result.rows[0].data) : null
+  }
+
+  async saveBoxTeamDraft(userId: string, tournamentId: string, snapshotIds: readonly string[]): Promise<BoxTeamDraftWorkspaceView> {
+    const tournament = await this.requireTournamentParticipant(userId, tournamentId)
+    if (snapshotIds.length < 1 || snapshotIds.length > tournament.rules.teamSize) {
+      throw new ProductError(`Choose between 1 and ${tournament.rules.teamSize} Pokémon.`, 400)
+    }
+    if (new Set(snapshotIds).size !== snapshotIds.length || snapshotIds.some((id) => !/^[0-9a-f-]{36}$/i.test(id))) {
+      throw new ProductError('Choose valid, non-duplicate Pokémon from your Box.', 400)
+    }
+    const locked = await this.db.query(
+      'select 1 from registered_team_versions where tournament_id = $1 and user_id = $2 limit 1', [tournamentId, userId],
+    )
+    if (locked.rows.length) throw new ProductError('This team is locked and can no longer be edited.', 409)
+    const result = await this.db.query<DbBoxPokemon>(
+      `select ps.id as snapshot_id, ps.save_import_id, ps.data as pokemon_data, si.data as import_data
+       from pokemon_snapshots ps join save_imports si on si.id = ps.save_import_id
+       where ps.id = any($1::uuid[]) and ps.owner_id = $2 and si.game_profile_id = $3`,
+      [snapshotIds, userId, tournament.rules.gameProfileId],
+    )
+    const byId = new Map(result.rows.map((row) => [row.snapshot_id, row]))
+    const ordered = snapshotIds.map((id) => byId.get(id))
+    if (ordered.some((row) => !row)) throw new ProductError('One or more Pokémon are not eligible for this tournament.', 422)
+    const rows = ordered as DbBoxPokemon[]
+    const pokemon = rows.map((row) => json<ImportedPokemon>(row.pokemon_data))
+    if (pokemon.some((item) => item.egg || !item.entityValid || !item.legalityValid || !item.moves.length)) {
+      throw new ProductError('Eggs, invalid Pokémon, and Pokémon without moves cannot join a team.', 422)
+    }
+    const existingDraft = await this.db.query<{ id: string }>(
+      'select id from team_drafts where tournament_id = $1 and user_id = $2', [tournamentId, userId],
+    )
+    const draftId = existingDraft.rows[0]?.id ?? randomUUID()
+    const savedAt = new Date().toISOString()
+    const primaryImport = json<SaveImportView>(rows[0]!.import_data)
+    await this.db.query(
+      `insert into team_drafts (id, tournament_id, user_id, save_import_id, pokemon_snapshot_ids, updated_at)
+       values ($1, $2, $3, $4, $5::jsonb, $6)
+       on conflict (tournament_id, user_id) do update set save_import_id = excluded.save_import_id,
+       pokemon_snapshot_ids = excluded.pokemon_snapshot_ids, updated_at = excluded.updated_at`,
+      [draftId, tournamentId, userId, rows[0]!.save_import_id, JSON.stringify(snapshotIds), savedAt],
+    )
+    await this.markTeamDraft(userId, tournamentId)
+    const box = await this.listPokemonBox(userId, tournament.rules.gameProfileId)
+    return {
+      tournament,
+      eligiblePokemon: box.pokemon,
+      draft: {
+        draftId,
+        uploadId: rows[0]!.save_import_id,
+        tournamentId,
+        profileId: primaryImport.profileId,
+        trainerName: primaryImport.trainer.name,
+        savedAt,
+        status: 'draft',
+        pokemon,
+        normalization: { startsFullyHealed: true, movePp: 'showdown-default-maximum', sourceSaveModified: false },
+      },
+      draftPokemonSnapshotIds: [...snapshotIds],
+    }
+  }
+
+  async getBoxTeamDraftWorkspace(userId: string, tournamentId: string): Promise<BoxTeamDraftWorkspaceView> {
+    const tournament = await this.requireTournamentMember(userId, tournamentId)
+    const [box, draft, row] = await Promise.all([
+      this.listPokemonBox(userId, tournament.rules.gameProfileId),
+      this.loadTeamDraft(userId, tournamentId),
+      this.db.query<{ pokemon_snapshot_ids: string[] | string }>(
+        'select pokemon_snapshot_ids from team_drafts where tournament_id = $1 and user_id = $2', [tournamentId, userId],
+      ),
+    ])
+    return {
+      tournament,
+      eligiblePokemon: box.pokemon,
+      draft: draft?.draft ?? null,
+      draftPokemonSnapshotIds: row.rows[0] ? json<string[]>(row.rows[0].pokemon_snapshot_ids) : [],
+    }
   }
 
   async persistTeamDraft(userId: string, tournamentId: string, draft: TeamDraftView) {

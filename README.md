@@ -17,6 +17,10 @@ self-hosted LAN server. Players connect from phones or computers on the same Wi-
 - Restart-safe local account creation/sign-in with scrypt-hashed passwords and HTTP-only sessions.
 - Persistent-product UI for league creation, username lookup/invitations, joining, member
   rosters, admin tournament setup, and private per-tournament team preparation.
+- Persistent private Pokémon Boxes populated from supported save imports, with full stats,
+  moves, IVs, EVs, source-game provenance, and server-enforced tournament eligibility.
+- Personalized Trainer Cards with selectable trainer artwork, battle record, and an animated
+  partner Pokémon chosen from the player's private Box.
 - Replaceable, restart-safe private team drafts during open registration, backed by immutable
   registered-team versions once a player locks for the event.
 - Immutable tournament team locking, a two-player event start, and authenticated match rooms

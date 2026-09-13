@@ -1,23 +1,24 @@
 # Pocket Monster Brawl — private leagues and cartridge-powered tournaments
 
-Status: active implementation plan, updated September 12, 2026. The self-hosted LAN build includes a mobile-first installable Trainer Gear interface, account/session flows, league creation, username invitations, membership, tournament setup, private tournament team drafts, immutable team locks, PostgreSQL-backed normalized save snapshots, the real FireRed/PKHeX import path, an explicit Showdown team adapter, and an authenticated two-player Showdown series with journaled decisions, restart reconstruction, scores, and results. Docker Compose is the verified runtime. Local HTTPS, realtime sockets, multi-player bracket execution, LAN discovery, and packaged releases are not complete.
+Status: active implementation plan, updated September 13, 2026. The self-hosted LAN build includes a mobile-first installable Trainer Gear interface, account/session flows, a persistent private Pokémon Box, personalized trainer cards and partner Pokémon, league creation, username invitations, membership, tournament setup, private tournament team drafts, immutable team locks, PostgreSQL-backed normalized save snapshots, the real FireRed/PKHeX import path, an explicit Showdown team adapter, and an authenticated two-player Showdown series with journaled decisions, restart reconstruction, scores, and results. Docker Compose is the verified runtime. Local HTTPS, realtime sockets, multi-player bracket execution, LAN discovery, and packaged releases are not complete.
 
 ## Product and scope
 
-Friends create accounts and join a persistent private **league**. A league owns its membership and history and can run multiple **tournaments** over time. FireRed is the first supported game profile, not an application-wide restriction. Before an event, members train in their existing games, import an in-game save, and privately save or revise a team draft. At the tournament lock point, the server freezes each final team and the tournament rules, generates a bracket, supplies those immutable teams to matches, and advances winners until a champion is decided.
+Friends create accounts, import supported saves into a persistent private **Pokémon Box**, and join a persistent private **league**. A league owns its membership and history and can run multiple **tournaments** over time. FireRed is the first supported game profile, not an application-wide restriction. Before an event, members train in their existing games, update their Box, and privately build or revise a tournament team from eligible stored Pokémon. At the tournament lock point, the server freezes each final team and the tournament rules, generates a bracket, supplies those immutable teams to matches, and advances winners until a champion is decided.
 
 ### Confirmed end-to-end product journey
 
-1. A first-time visitor creates an account; returning players sign in on any supported phone or computer.
-2. A player creates a persistent league and becomes its owner, then finds registered players by username and sends in-app invitations.
-3. Invited players accept and appear on the league roster. Everyone can see membership and a coarse preparation status, but never another player's draft or final team data.
-4. A league owner/admin creates a tournament event and chooses its game profile, format, bracket type, best-of series length, team size, dates, lock point, and item/species rules.
-5. Members may import new saves and replace private team drafts at their leisure while registration is open. Saving a draft is not final submission.
-6. At the configured lock point (or an explicit, audited admin start), the server validates and freezes one immutable registered-team version per entrant. Late changes require a visible organizer action and create a new version.
-7. The server seeds a single-elimination bracket, assigns opponents, and runs each best-of match series using the frozen teams and rules. Players only receive battle information they are allowed to see.
-8. Each finished series advances its winner transactionally. The final series winner becomes the tournament champion; the league retains the event, bracket, and match history for future visits.
+1. A first-time visitor creates an account; returning players sign in on any supported phone or computer and land on their personalized Trainer Card.
+2. A player imports a supported save into their private Pokémon Box and may choose one stored Pokémon as the animated partner on their Trainer Card.
+3. A player creates a persistent league and becomes its owner, then finds registered players by username and sends in-app invitations.
+4. Invited players accept and appear on the league roster. Everyone can see membership and a coarse preparation status, but never another player's Box, draft, or final team data.
+5. A league owner/admin creates a tournament event and chooses its game profile, format, bracket type, best-of series length, team size, dates, lock point, and item/species rules.
+6. Members build a private draft from the Box entries allowed by that tournament's frozen game profile. Saving a draft is not final submission.
+7. At the configured lock point (or an explicit, audited admin start), the server validates and freezes one immutable registered-team version per entrant. Later Box imports never change that locked version.
+8. The server seeds a single-elimination bracket, assigns opponents, and runs each best-of match series using the frozen teams and rules. Players only receive battle information they are allowed to see.
+9. Each finished series advances its winner transactionally. The final series winner becomes the tournament champion; the league retains the event, bracket, and match history for future visits.
 
-The whole product uses one portrait Trainer Gear interface: a red, cream, black, and yellow handheld frame with a large screen above working D-pad and A/B controls. LEAGUE, CUP, INBOX, and CARD organize the global application; team import and registration live inside a specific tournament instead of appearing as a global destination. L/R changes modes, direct touch remains available, and the controls can collapse. The live Showdown battle replaces the app content inside the same device instead of switching to a separate controller skin. It is a browser interface, not an emulator. Desktop and wider layouts remain usable.
+The whole product uses one portrait Trainer Gear interface: a red, cream, black, and yellow handheld frame with a large screen above working D-pad and A/B controls. CARD, BOX, LEAGUE, and CUP organize the global application, with Card first and the Trainer Card as the signed-in landing screen. The Box owns save imports and the private cross-league collection; tournament team registration remains contextual to a Cup and draws only from eligible Box entries. L/R changes modes, direct touch remains available, and the controls can collapse. The live Showdown battle replaces the app content inside the same device instead of switching to a separate controller skin. It is a browser interface, not an emulator. Desktop and wider layouts remain usable.
 
 Confirmed requirements:
 
@@ -197,7 +198,7 @@ Done when: a player uploads their own save, registers a team, and later joins a 
 
 - Use the same red Trainer Gear frame, proportions, safe-area handling, collapse preference, and physical controls across league workflows and live battles.
 - Use one selection model for taps, D-pad, keyboard, and A/B so inputs remain consistent. Add hardware gamepad mapping only after testing on actual devices.
-- D-pad moves focus; A selects/confirms; B backs out before submission; Select opens the battle menu and Start opens the party during a battle. In application screens, L/R changes mode, Start opens LEAGUE, and Select opens INBOX.
+- D-pad moves focus; A selects/confirms; B backs out before submission; Select opens the battle menu and Start opens the party during a battle. In application screens, L/R changes mode, Start opens CARD, and Select opens league invitations.
 - Render Pokemon, health bars, status indicators, turn text, and lightweight attack/faint animations. Evaluate reuse of Showdown's rendering code in a time-boxed spike; do not make completion depend on extracting it successfully. A simpler custom renderer is the fallback.
 - Treat simulator events as authoritative and animation as presentation. Reconnect and replay must not depend on completing an animation.
 - Respect phone safe areas, portrait and landscape, touch target sizes, reduced motion, and mute controls. Support direct tapping even with controller buttons visible.
