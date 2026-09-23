@@ -6,6 +6,8 @@ import type {
   LeagueDetailView,
   LeagueInvitationView,
   LeagueSummaryView,
+  TournamentBracketView,
+  TournamentEntrantsView,
   TournamentMatchView,
   TournamentView,
   TrainerCardView,
@@ -53,46 +55,74 @@ export function AuthPage() {
       <section className={styles.authConsole}>
         <div className={styles.authBrand}>
           <span aria-hidden="true">PM</span>
-          <div><strong>Pocket Monster Brawl</strong></div>
+          <div>
+            <strong>Pocket Monster Brawl</strong>
+          </div>
         </div>
         <form className={styles.card} onSubmit={submit}>
           <div className={styles.tabs}>
-          <button
-            aria-pressed={mode === "register"}
-            onClick={() => setMode("register")}
-            type="button"
-          >
-            Create account
-          </button>
-          <button
-            aria-pressed={mode === "login"}
-            onClick={() => setMode("login")}
-            type="button"
-          >
-            Sign in
-          </button>
+            <button
+              aria-pressed={mode === "register"}
+              onClick={() => setMode("register")}
+              type="button"
+            >
+              Create account
+            </button>
+            <button
+              aria-pressed={mode === "login"}
+              onClick={() => setMode("login")}
+              type="button"
+            >
+              Sign in
+            </button>
           </div>
           <h1>{mode === "register" ? "Create player" : "Select player"}</h1>
           {mode === "register" && (
             <label>
               Display name
-              <input autoComplete="name" name="displayName" required maxLength={40} />
+              <input
+                autoComplete="name"
+                name="displayName"
+                required
+                maxLength={40}
+              />
             </label>
           )}
           <label>
             Username
-            <input autoCapitalize="none" autoComplete="username" name="username" pattern="[a-zA-Z0-9_]{3,20}" required />
+            <input
+              autoCapitalize="none"
+              autoComplete="username"
+              name="username"
+              pattern="[a-zA-Z0-9_]{3,20}"
+              required
+            />
           </label>
           <label>
             Password
-            <input autoComplete={mode === "register" ? "new-password" : "current-password"} minLength={8} name="password" required type="password" />
+            <input
+              autoComplete={
+                mode === "register" ? "new-password" : "current-password"
+              }
+              minLength={8}
+              name="password"
+              required
+              type="password"
+            />
           </label>
-          {error && <p className={styles.error} role="alert">{error}</p>}
+          {error && (
+            <p className={styles.error} role="alert">
+              {error}
+            </p>
+          )}
           <button className={styles.primary} disabled={pending} type="submit">
-            {pending ? "Connecting…" : mode === "register" ? "Create player" : "Enter"}
+            {pending
+              ? "Connecting…"
+              : mode === "register"
+                ? "Create player"
+                : "Enter"}
           </button>
         </form>
-        <p className={styles.localNotice}><span aria-hidden="true" /> Local server connected</p>
       </section>
     </main>
   );
@@ -145,23 +175,42 @@ export function Dashboard() {
         <header className={styles.screenHeader}>
           <div>
             <h1>Your leagues</h1>
-            <p>{leagues.data?.leagues.length ?? 0} league{leagues.data?.leagues.length === 1 ? "" : "s"}</p>
+            <p>
+              {leagues.data?.leagues.length ?? 0} league
+              {leagues.data?.leagues.length === 1 ? "" : "s"}
+            </p>
           </div>
-          <button className={styles.iconAction} onClick={() => setCreateOpen((open) => !open)} type="button">
-            <GameIcon name="plus" /><span>New</span>
+          <button
+            className={styles.iconAction}
+            onClick={() => setCreateOpen((open) => !open)}
+            type="button"
+          >
+            <GameIcon name="plus" />
+            <span>New</span>
           </button>
         </header>
         {Boolean(invitations.data?.invitations.length) && (
           <Link className={styles.inviteAlert} to="/app/inbox">
             <GameIcon name="mail" />
-            <span><strong>New league invitation</strong><small>{invitations.data!.invitations.length} waiting</small></span>
+            <span>
+              <strong>New league invitation</strong>
+              <small>{invitations.data!.invitations.length} waiting</small>
+            </span>
             <b>OPEN</b>
           </Link>
         )}
         {error && <p className={styles.error}>{error}</p>}
         {createOpen && (
-          <form className={`${styles.card} ${styles.createPanel}`} onSubmit={createLeague}>
-            <div className={styles.panelHeading}><h2>New league</h2><button onClick={() => setCreateOpen(false)} type="button">Close</button></div>
+          <form
+            className={`${styles.card} ${styles.createPanel}`}
+            onSubmit={createLeague}
+          >
+            <div className={styles.panelHeading}>
+              <h2>New league</h2>
+              <button onClick={() => setCreateOpen(false)} type="button">
+                Close
+              </button>
+            </div>
             <label>
               League name
               <input name="name" placeholder="Saturday League" required />
@@ -172,12 +221,23 @@ export function Dashboard() {
         <section className={styles.leagueList}>
           {leagues.data?.leagues.length ? (
             leagues.data.leagues.map((league, index) => (
-              <Link className={styles.leagueRow} key={league.id} to={`/leagues/${league.id}`}>
-                <span className={styles.slotNumber}>{String(index + 1).padStart(2, "0")}</span>
+              <Link
+                className={styles.leagueRow}
+                key={league.id}
+                to={`/leagues/${league.id}`}
+              >
+                <span className={styles.slotNumber}>
+                  {String(index + 1).padStart(2, "0")}
+                </span>
                 <div>
-                  <small>{league.role} · {league.memberCount} player{league.memberCount === 1 ? "" : "s"}</small>
+                  <small>
+                    {league.role} · {league.memberCount} player
+                    {league.memberCount === 1 ? "" : "s"}
+                  </small>
                   <strong>{league.name}</strong>
-                  <span>{league.nextTournament?.name ?? "No active event"}</span>
+                  <span>
+                    {league.nextTournament?.name ?? "No active event"}
+                  </span>
                 </div>
                 <b>›</b>
               </Link>
@@ -200,36 +260,59 @@ export function InvitationsPage() {
   const [error, setError] = useState("");
   const invitations = useQuery({
     queryKey: ["invitations"],
-    queryFn: () => api<{ invitations: LeagueInvitationView[] }>("/api/invitations"),
+    queryFn: () =>
+      api<{ invitations: LeagueInvitationView[] }>("/api/invitations"),
   });
 
   async function accept(invitationId: string) {
     setError("");
     try {
-      const league = await api<LeagueDetailView>(`/api/invitations/${invitationId}/accept`, { method: "POST" });
+      const league = await api<LeagueDetailView>(
+        `/api/invitations/${invitationId}/accept`,
+        { method: "POST" },
+      );
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["leagues"] }),
         queryClient.invalidateQueries({ queryKey: ["invitations"] }),
       ]);
       navigate(`/leagues/${league.id}`);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Could not join league.");
+      setError(
+        caught instanceof Error ? caught.message : "Could not join league.",
+      );
     }
   }
 
   return (
     <RequireSession>
       <main className={styles.workspace}>
-        <header className={styles.screenHeader}><div><h1>Inbox</h1><p>League invitations</p></div></header>
+        <header className={styles.screenHeader}>
+          <div>
+            <h1>Inbox</h1>
+            <p>League invitations</p>
+          </div>
+        </header>
         {error && <p className={styles.error}>{error}</p>}
         <section className={styles.leagueList}>
-          {invitations.data?.invitations.length ? invitations.data.invitations.map((invite) => (
-            <article className={styles.inviteRow} key={invite.id}>
-              <span className={styles.inviteGlyph}><GameIcon name="mail" /></span>
-              <div><small>From {invite.invitedBy.displayName}</small><strong>{invite.leagueName}</strong></div>
-              <button onClick={() => accept(invite.id)}>Join</button>
-            </article>
-          )) : <div className={styles.empty}><strong>No new invitations</strong><p>League invitations will appear here.</p></div>}
+          {invitations.data?.invitations.length ? (
+            invitations.data.invitations.map((invite) => (
+              <article className={styles.inviteRow} key={invite.id}>
+                <span className={styles.inviteGlyph}>
+                  <GameIcon name="mail" />
+                </span>
+                <div>
+                  <small>From {invite.invitedBy.displayName}</small>
+                  <strong>{invite.leagueName}</strong>
+                </div>
+                <button onClick={() => accept(invite.id)}>Join</button>
+              </article>
+            ))
+          ) : (
+            <div className={styles.empty}>
+              <strong>No new invitations</strong>
+              <p>League invitations will appear here.</p>
+            </div>
+          )}
         </section>
       </main>
     </RequireSession>
@@ -241,25 +324,48 @@ export function CupsPage() {
     queryKey: ["leagues"],
     queryFn: () => api<{ leagues: LeagueSummaryView[] }>("/api/leagues"),
   });
-  const events = leagues.data?.leagues.flatMap((league) =>
-    league.nextTournament ? [{ league, tournament: league.nextTournament }] : [],
-  ) ?? [];
+  const events =
+    leagues.data?.leagues.flatMap((league) =>
+      league.nextTournament
+        ? [{ league, tournament: league.nextTournament }]
+        : [],
+    ) ?? [];
 
   return (
     <RequireSession>
       <main className={styles.workspace}>
         <header className={styles.screenHeader}>
-          <div><h1>Cups</h1><p>Current tournaments</p></div>
+          <div>
+            <h1>Cups</h1>
+            <p>Current tournaments</p>
+          </div>
         </header>
         <section className={styles.eventList}>
-          {events.length ? events.map(({ league, tournament }) => (
-            <Link className={styles.eventRow} key={tournament.id} to={`/leagues/${league.id}/tournaments/${tournament.id}/team`}>
-              <div className={styles.eventStatus}><span />{tournament.status.replaceAll("-", " ")}</div>
-              <strong>{tournament.name}</strong>
-              <small>{league.name} · Best of {tournament.rules.bestOf} · {tournament.rules.teamSize} Pokémon</small>
-              <b>OPEN ›</b>
-            </Link>
-          )) : <div className={styles.empty}><strong>No active cups</strong><p>Create a tournament from one of your leagues.</p></div>}
+          {events.length ? (
+            events.map(({ league, tournament }) => (
+              <Link
+                className={styles.eventRow}
+                key={tournament.id}
+                to={`/leagues/${league.id}/tournaments/${tournament.id}/team`}
+              >
+                <div className={styles.eventStatus}>
+                  <span />
+                  {tournament.status.replaceAll("-", " ")}
+                </div>
+                <strong>{tournament.name}</strong>
+                <small>
+                  {league.name} · Best of {tournament.rules.bestOf} ·{" "}
+                  {tournament.rules.teamSize} Pokémon
+                </small>
+                <b>OPEN ›</b>
+              </Link>
+            ))
+          ) : (
+            <div className={styles.empty}>
+              <strong>No active cups</strong>
+              <p>Create a tournament from one of your leagues.</p>
+            </div>
+          )}
         </section>
       </main>
     </RequireSession>
@@ -268,7 +374,10 @@ export function CupsPage() {
 
 export function PlayerPage() {
   const queryClient = useQueryClient();
-  const card = useQuery({ queryKey: ["trainer-card"], queryFn: () => api<TrainerCardView>("/api/trainer-card") });
+  const card = useQuery({
+    queryKey: ["trainer-card"],
+    queryFn: () => api<TrainerCardView>("/api/trainer-card"),
+  });
   const [editorOpen, setEditorOpen] = useState(false);
   const [profilePending, setProfilePending] = useState(false);
   const [profileError, setProfileError] = useState("");
@@ -279,12 +388,18 @@ export function PlayerPage() {
     setProfileError("");
     try {
       const updated = await api<TrainerCardView>("/api/trainer-card", {
-        method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ trainerSprite }),
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ trainerSprite }),
       });
       queryClient.setQueryData(["trainer-card"], updated);
       setEditorOpen(false);
     } catch (caught) {
-      setProfileError(caught instanceof Error ? caught.message : "The trainer sprite could not be changed.");
+      setProfileError(
+        caught instanceof Error
+          ? caught.message
+          : "The trainer sprite could not be changed.",
+      );
     } finally {
       setProfilePending(false);
     }
@@ -299,43 +414,139 @@ export function PlayerPage() {
   return (
     <RequireSession>
       <main className={styles.workspace}>
-        <header className={styles.screenHeader}><div><h1>Trainer Card</h1><p>Official league record</p></div><button aria-expanded={editorOpen} aria-label="Edit trainer" className={styles.iconAction} onClick={() => setEditorOpen((open) => !open)} type="button"><GameIcon name="edit" /><span>Edit</span></button></header>
-        {card.isPending ? <div className={styles.loading}>Printing trainer card…</div> : card.data && <>
-          {editorOpen ? <section className={styles.avatarPanel}>
-            <header><div><small>Edit trainer</small><strong>Choose appearance</strong></div><button onClick={() => setEditorOpen(false)} type="button">Done</button></header>
-            <div>{trainerSpriteIds.map((sprite) => {
-              const label = sprite === "leaf-gen3" ? "leaf" : sprite;
-              return <button aria-label={`Use ${label} trainer sprite`} aria-pressed={card.data?.trainerSprite === sprite} disabled={profilePending} key={sprite} onClick={() => chooseTrainerSprite(sprite)} type="button"><img alt="" src={`https://play.pokemonshowdown.com/sprites/trainers/${sprite}.png`} /><span>{label}</span></button>;
-            })}</div>
-          </section> : <section className={styles.trainerLicense}>
-            <header><span>POCKET MONSTER BRAWL</span><b>TRAINER</b></header>
-            <div className={styles.licenseBody}>
-              <div className={styles.trainerScene}>
-                <div className={styles.trainerFigure}>
-                  <img alt={`${card.data.trainerSprite} trainer`} src={`https://play.pokemonshowdown.com/sprites/trainers/${card.data.trainerSprite}.png`} />
-                  <span>ID {card.data.user.id.slice(0, 8).toUpperCase()}</span>
-                </div>
-                {card.data.partner ? <div className={styles.partnerFigure}>
-                  <img alt={card.data.partner.pokemon.species} src={`https://play.pokemonshowdown.com/sprites/${card.data.partner.pokemon.shiny ? "ani-shiny" : "ani"}/${card.data.partner.pokemon.species.toLowerCase().replace(/[^a-z0-9]+/g, "")}.gif`} />
-                  <span><strong>{card.data.partner.pokemon.nickname || card.data.partner.pokemon.species}</strong><small>Lv.{card.data.partner.pokemon.level}</small></span>
-                </div> : <Link className={styles.emptyPartner} to="/app/box"><b>?</b><span>Choose partner</span></Link>}
-              </div>
-              <div className={styles.trainerIdentity}>
-                <div><small>Registered trainer</small><h2>{card.data.user.displayName}</h2><p>@{card.data.user.username}</p></div>
-                <dl>
-                  <div><dt>Leagues</dt><dd>{card.data.stats.leagues}</dd></div>
-                  <div><dt>Cups</dt><dd>{card.data.stats.cups}</dd></div>
-                  <div><dt>Wins</dt><dd>{card.data.stats.wins}</dd></div>
-                  <div><dt>Losses</dt><dd>{card.data.stats.losses}</dd></div>
-                </dl>
-              </div>
-            </div>
-          </section>}
-          {profileError && <p className={styles.error}>{profileError}</p>}
-        </>}
+        <header className={styles.screenHeader}>
+          <div>
+            <h1>Trainer Card</h1>
+            <p>Official league record</p>
+          </div>
+          <button
+            aria-expanded={editorOpen}
+            aria-label="Edit trainer"
+            className={styles.iconAction}
+            onClick={() => setEditorOpen((open) => !open)}
+            type="button"
+          >
+            <GameIcon name="edit" />
+            <span>Edit</span>
+          </button>
+        </header>
+        {card.isPending ? (
+          <div className={styles.loading}>Printing trainer card…</div>
+        ) : (
+          card.data && (
+            <>
+              {editorOpen ? (
+                <section className={styles.avatarPanel}>
+                  <header>
+                    <div>
+                      <small>Edit trainer</small>
+                      <strong>Choose appearance</strong>
+                    </div>
+                    <button onClick={() => setEditorOpen(false)} type="button">
+                      Done
+                    </button>
+                  </header>
+                  <div>
+                    {trainerSpriteIds.map((sprite) => {
+                      const label = sprite === "leaf-gen3" ? "leaf" : sprite;
+                      return (
+                        <button
+                          aria-label={`Use ${label} trainer sprite`}
+                          aria-pressed={card.data?.trainerSprite === sprite}
+                          disabled={profilePending}
+                          key={sprite}
+                          onClick={() => chooseTrainerSprite(sprite)}
+                          type="button"
+                        >
+                          <img
+                            alt=""
+                            src={`https://play.pokemonshowdown.com/sprites/trainers/${sprite}.png`}
+                          />
+                          <span>{label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </section>
+              ) : (
+                <section className={styles.trainerLicense}>
+                  <header>
+                    <span>POCKET MONSTER BRAWL</span>
+                    <b>TRAINER</b>
+                  </header>
+                  <div className={styles.licenseBody}>
+                    <div className={styles.trainerScene}>
+                      <div className={styles.trainerFigure}>
+                        <img
+                          alt={`${card.data.trainerSprite} trainer`}
+                          src={`https://play.pokemonshowdown.com/sprites/trainers/${card.data.trainerSprite}.png`}
+                        />
+                        <span>
+                          ID {card.data.user.id.slice(0, 8).toUpperCase()}
+                        </span>
+                      </div>
+                      {card.data.partner ? (
+                        <div className={styles.partnerFigure}>
+                          <img
+                            alt={card.data.partner.pokemon.species}
+                            src={`https://play.pokemonshowdown.com/sprites/${card.data.partner.pokemon.shiny ? "ani-shiny" : "ani"}/${card.data.partner.pokemon.species.toLowerCase().replace(/[^a-z0-9]+/g, "")}.gif`}
+                          />
+                          <span>
+                            <strong>
+                              {card.data.partner.pokemon.nickname ||
+                                card.data.partner.pokemon.species}
+                            </strong>
+                            <small>Lv.{card.data.partner.pokemon.level}</small>
+                          </span>
+                        </div>
+                      ) : (
+                        <Link className={styles.emptyPartner} to="/app/box">
+                          <b>?</b>
+                          <span>Choose partner</span>
+                        </Link>
+                      )}
+                    </div>
+                    <div className={styles.trainerIdentity}>
+                      <div>
+                        <small>Registered trainer</small>
+                        <h2>{card.data.user.displayName}</h2>
+                        <p>@{card.data.user.username}</p>
+                      </div>
+                      <dl>
+                        <div>
+                          <dt>Leagues</dt>
+                          <dd>{card.data.stats.leagues}</dd>
+                        </div>
+                        <div>
+                          <dt>Cups</dt>
+                          <dd>{card.data.stats.cups}</dd>
+                        </div>
+                        <div>
+                          <dt>Wins</dt>
+                          <dd>{card.data.stats.wins}</dd>
+                        </div>
+                        <div>
+                          <dt>Losses</dt>
+                          <dd>{card.data.stats.losses}</dd>
+                        </div>
+                      </dl>
+                    </div>
+                  </div>
+                </section>
+              )}
+              {profileError && <p className={styles.error}>{profileError}</p>}
+            </>
+          )
+        )}
         <div className={styles.systemPanel}>
-          <div><span>Server</span><strong>Connected</strong></div>
-          <div><span>Save handling</span><strong>Raw files never retained</strong></div>
+          <div>
+            <span>Server</span>
+            <strong>Connected</strong>
+          </div>
+          <div>
+            <span>Save handling</span>
+            <strong>Raw files never retained</strong>
+          </div>
           <button onClick={logout}>Sign out</button>
         </div>
       </main>
@@ -352,7 +563,9 @@ export function LeaguePage() {
   });
   const [search, setSearch] = useState("");
   const [message, setMessage] = useState("");
-  const [section, setSection] = useState<"events" | "players" | "admin">("events");
+  const [section, setSection] = useState<"events" | "players" | "admin">(
+    "events",
+  );
   const users = useQuery({
     queryKey: ["user-search", search],
     queryFn: () =>
@@ -383,7 +596,8 @@ export function LeaguePage() {
   async function createTournament(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = event.currentTarget;
-    const values = Object.fromEntries(new FormData(form));
+    const formData = new FormData(form);
+    const values = Object.fromEntries(formData);
     try {
       await api(`/api/leagues/${leagueId}/tournaments`, {
         method: "POST",
@@ -392,6 +606,7 @@ export function LeaguePage() {
           ...values,
           bestOf: Number(values.bestOf),
           teamSize: Number(values.teamSize),
+          entrantIds: formData.getAll("entrantIds"),
         }),
       });
       form.reset();
@@ -412,95 +627,189 @@ export function LeaguePage() {
   return (
     <RequireSession>
       <main className={styles.workspace}>
-        <Link className={styles.back} to="/app/leagues"><GameIcon name="back" /> Leagues</Link>
+        <Link className={styles.back} to="/app/leagues">
+          <GameIcon name="back" /> Leagues
+        </Link>
         <header className={styles.leagueHeader}>
           <div>
             <h1>{league.data.name}</h1>
-            <p>{league.data.members.length} players · {league.data.currentUserRole}</p>
+            <p>
+              {league.data.members.length} players ·{" "}
+              {league.data.currentUserRole}
+            </p>
           </div>
-          {isAdmin && <button className={styles.iconAction} aria-label="League administration" onClick={() => setSection("admin")} type="button"><GameIcon name="gear" /><span>Admin</span></button>}
+          {isAdmin && (
+            <button
+              className={styles.iconAction}
+              aria-label="League administration"
+              onClick={() => setSection("admin")}
+              type="button"
+            >
+              <GameIcon name="gear" />
+              <span>Admin</span>
+            </button>
+          )}
         </header>
         {message && <p className={styles.notice}>{message}</p>}
-        <div className={styles.sectionTabs} role="tablist" aria-label="League sections">
-          <button aria-selected={section === "events"} onClick={() => setSection("events")} role="tab">Events</button>
-          <button aria-selected={section === "players"} onClick={() => setSection("players")} role="tab">Players</button>
-          {isAdmin && <button aria-selected={section === "admin"} onClick={() => setSection("admin")} role="tab">Admin</button>}
+        <div
+          className={styles.sectionTabs}
+          role="tablist"
+          aria-label="League sections"
+        >
+          <button
+            aria-selected={section === "events"}
+            onClick={() => setSection("events")}
+            role="tab"
+          >
+            Events
+          </button>
+          <button
+            aria-selected={section === "players"}
+            onClick={() => setSection("players")}
+            role="tab"
+          >
+            Players
+          </button>
+          {isAdmin && (
+            <button
+              aria-selected={section === "admin"}
+              onClick={() => setSection("admin")}
+              role="tab"
+            >
+              Admin
+            </button>
+          )}
         </div>
 
-        {section === "events" && <section className={styles.eventList}>
-          {league.data.tournaments.length ? league.data.tournaments.map((event) => (
-            <Link className={styles.eventRow} key={event.id} to={`/leagues/${leagueId}/tournaments/${event.id}/team`}>
-              <div className={styles.eventStatus}><span />{event.status.replaceAll("-", " ")}</div>
-              <strong>{event.name}</strong>
-              <small>Best of {event.rules.bestOf} · Up to {event.rules.teamSize} Pokémon</small>
-              <b>OPEN ›</b>
-            </Link>
-          )) : <div className={styles.empty}><strong>No event scheduled</strong><p>An admin can open the first tournament.</p></div>}
-        </section>}
+        {section === "events" && (
+          <section className={styles.eventList}>
+            {league.data.tournaments.length ? (
+              league.data.tournaments.map((event) => (
+                <Link
+                  className={styles.eventRow}
+                  key={event.id}
+                  to={`/leagues/${leagueId}/tournaments/${event.id}/team`}
+                >
+                  <div className={styles.eventStatus}>
+                    <span />
+                    {event.status.replaceAll("-", " ")}
+                  </div>
+                  <strong>{event.name}</strong>
+                  <small>
+                    Best of {event.rules.bestOf} · Up to {event.rules.teamSize}{" "}
+                    Pokémon
+                  </small>
+                  <b>OPEN ›</b>
+                </Link>
+              ))
+            ) : (
+              <div className={styles.empty}>
+                <strong>No event scheduled</strong>
+                <p>An admin can open the first tournament.</p>
+              </div>
+            )}
+          </section>
+        )}
 
-        {section === "players" && <section className={styles.roster}>
-          {league.data.members.map((member, index) => (
-            <div key={member.user.id}>
-              <span>{member.user.displayName.slice(0, 1).toUpperCase()}</span>
-              <p><small>Player {String(index + 1).padStart(2, "0")} · {member.role}</small><strong>{member.user.displayName}</strong><em>@{member.user.username}</em></p>
-              <b data-state={member.teamStatus}>{member.teamStatus === "submitted" ? "LOCKED" : member.teamStatus.replace("-", " ")}</b>
-            </div>
-          ))}
-        </section>}
+        {section === "players" && (
+          <section className={styles.roster}>
+            {league.data.members.map((member, index) => (
+              <div key={member.user.id}>
+                <span>{member.user.displayName.slice(0, 1).toUpperCase()}</span>
+                <p>
+                  <small>
+                    Player {String(index + 1).padStart(2, "0")} · {member.role}
+                  </small>
+                  <strong>{member.user.displayName}</strong>
+                  <em>@{member.user.username}</em>
+                </p>
+                <b data-state={member.teamStatus}>
+                  {member.teamStatus === "submitted"
+                    ? "LOCKED"
+                    : member.teamStatus.replace("-", " ")}
+                </b>
+              </div>
+            ))}
+          </section>
+        )}
 
         {section === "admin" && isAdmin && (
           <section className={styles.adminGrid}>
-              <form className={styles.card} onSubmit={createTournament}>
-                <div className={styles.panelHeading}><h2>Open tournament</h2><span>01</span></div>
-                <label>
-                  Name
-                  <input name="name" placeholder="Fall Championship" required />
-                </label>
-                <div className={styles.fieldRow}>
-                  <label>
-                    Best of
-                    <select defaultValue="3" name="bestOf">
-                      <option value="1">1</option>
-                      <option value="3">3</option>
-                      <option value="5">5</option>
-                    </select>
-                  </label>
-                  <label>
-                    Team size
-                    <select defaultValue="6" name="teamSize">
-                      {[1, 2, 3, 4, 5, 6].map((size) => (
-                        <option key={size}>{size}</option>
-                      ))}
-                    </select>
-                  </label>
-                </div>
-                <label>
-                  Starts
-                  <input name="startsAt" type="datetime-local" />
-                </label>
-                <label>
-                  Lock deadline
-                  <input name="teamLockAt" type="datetime-local" />
-                </label>
-                <button className={styles.primary}>Open registration</button>
-              </form>
-              <div className={styles.card}>
-                <div className={styles.panelHeading}><h2>Invite player</h2><span>02</span></div>
-                <input
-                  onChange={(event) => setSearch(event.target.value)}
-                  placeholder="Search players…"
-                  value={search}
-                />
-                {users.data?.users.map((user) => (
-                  <div className={styles.userResult} key={user.id}>
-                    <span>
-                      <strong>{user.displayName}</strong>
-                      <small>@{user.username}</small>
-                    </span>
-                    <button onClick={() => invite(user.id)}>Invite</button>
-                  </div>
-                ))}
+            <form className={styles.card} onSubmit={createTournament}>
+              <div className={styles.panelHeading}>
+                <h2>Open tournament</h2>
+                <span>01</span>
               </div>
+              <label>
+                Name
+                <input name="name" placeholder="Fall Championship" required />
+              </label>
+              <div className={styles.fieldRow}>
+                <label>
+                  Best of
+                  <select defaultValue="3" name="bestOf">
+                    <option value="1">1</option>
+                    <option value="3">3</option>
+                    <option value="5">5</option>
+                  </select>
+                </label>
+                <label>
+                  Team size
+                  <select defaultValue="6" name="teamSize">
+                    {[1, 2, 3, 4, 5, 6].map((size) => (
+                      <option key={size}>{size}</option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+              <label>
+                Starts
+                <input name="startsAt" type="datetime-local" />
+              </label>
+              <label>
+                Lock deadline
+                <input name="teamLockAt" type="datetime-local" />
+              </label>
+              <fieldset className={styles.entrantPicker}>
+                <legend>Entrants</legend>
+                {league.data.members.map((member, index) => (
+                  <label key={member.user.id}>
+                    <input
+                      defaultChecked
+                      name="entrantIds"
+                      type="checkbox"
+                      value={member.user.id}
+                    />
+                    <span>
+                      <b>{String(index + 1).padStart(2, "0")}</b>
+                      <strong>{member.user.displayName}</strong>
+                      <small>@{member.user.username}</small>
+                    </span>
+                  </label>
+                ))}
+              </fieldset>
+              <button className={styles.primary}>Open registration</button>
+            </form>
+            <div className={styles.card}>
+              <div className={styles.panelHeading}>
+                <h2>Invite player</h2>
+                <span>02</span>
+              </div>
+              <input
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Search players…"
+                value={search}
+              />
+              {users.data?.users.map((user) => (
+                <div className={styles.userResult} key={user.id}>
+                  <span>
+                    <strong>{user.displayName}</strong>
+                    <small>@{user.username}</small>
+                  </span>
+                  <button onClick={() => invite(user.id)}>Invite</button>
+                </div>
+              ))}
+            </div>
           </section>
         )}
       </main>
@@ -510,6 +819,7 @@ export function LeaguePage() {
 
 export function TournamentTeamPage() {
   const { leagueId = "", tournamentId = "" } = useParams();
+  const session = useSession();
   const league = useQuery({
     queryKey: ["league", leagueId],
     queryFn: () => api<LeagueDetailView>(`/api/leagues/${leagueId}`),
@@ -517,8 +827,22 @@ export function TournamentTeamPage() {
   const tournament = league.data?.tournaments.find(
     (event) => event.id === tournamentId,
   );
-  const isAdmin = league.data?.currentUserRole === "owner" || league.data?.currentUserRole === "admin";
-  if (league.isPending)
+  const isAdmin =
+    league.data?.currentUserRole === "owner" ||
+    league.data?.currentUserRole === "admin";
+  const entrants = useQuery({
+    queryKey: ["tournament-entrants", tournamentId],
+    queryFn: () =>
+      api<TournamentEntrantsView>(
+        `/api/tournaments/${tournamentId}/entrants`,
+      ),
+    enabled: Boolean(tournamentId),
+    refetchInterval: 1000,
+  });
+  const currentEntrant = entrants.data?.entrants.find(
+    (entrant) => entrant.user.id === session.data?.user.id,
+  );
+  if (league.isPending || session.isPending || entrants.isPending)
     return <main className={styles.loading}>Opening tournament…</main>;
   if (!tournament) return <Navigate to={`/leagues/${leagueId}`} replace />;
   return (
@@ -526,66 +850,215 @@ export function TournamentTeamPage() {
       <div>
         <div className={styles.contextBar}>
           <Link to={`/leagues/${leagueId}`}>← {league.data?.name}</Link>
-          <span>{tournament.name} · Private team</span>
+          <span>{tournament.name} · Tournament desk</span>
         </div>
-        <TournamentMatchPanel isAdmin={isAdmin} tournament={tournament} />
-        <TournamentTeamBuilder tournament={tournament} />
+        <TournamentEntrantsPanel
+          entrants={entrants.data}
+          isAdmin={isAdmin}
+          tournament={tournament}
+        />
+        <TournamentBracketPanel
+          isAdmin={isAdmin}
+          isEntrant={Boolean(currentEntrant?.selected)}
+          tournament={tournament}
+        />
+        {currentEntrant?.selected && tournament.status === "registration-open" ? (
+          <TournamentTeamBuilder tournament={tournament} />
+        ) : !currentEntrant?.selected ? (
+          <section className={styles.notEntered}>
+            <strong>Not entered in this cup</strong>
+            <p>You can view the field and bracket, but only selected entrants prepare a team.</p>
+          </section>
+        ) : null}
       </div>
     </RequireSession>
   );
 }
 
-function TournamentMatchPanel({ tournament, isAdmin }: { tournament: TournamentView; isAdmin: boolean }) {
+function TournamentEntrantsPanel({
+  tournament,
+  entrants,
+  isAdmin,
+}: {
+  tournament: TournamentView;
+  entrants: TournamentEntrantsView | undefined;
+  isAdmin: boolean;
+}) {
+  const queryClient = useQueryClient();
+  const [message, setMessage] = useState("");
+
+  async function saveEntrants(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setMessage("");
+    const userIds = new FormData(event.currentTarget)
+      .getAll("entrantIds")
+      .filter((value): value is string => typeof value === "string");
+    try {
+      const updated = await api<TournamentEntrantsView>(
+        `/api/tournaments/${tournament.id}/entrants`,
+        {
+          method: "PUT",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ userIds }),
+        },
+      );
+      queryClient.setQueryData(
+        ["tournament-entrants", tournament.id],
+        updated,
+      );
+      setMessage("Tournament field saved.");
+    } catch (caught) {
+      setMessage(
+        caught instanceof Error ? caught.message : "The entrant list could not be saved.",
+      );
+    }
+  }
+
+  return (
+    <form className={styles.entrantBoard} onSubmit={saveEntrants}>
+      <header>
+        <div>
+          <small>Tournament field</small>
+          <strong>{entrants?.entrants.filter((entrant) => entrant.selected).length ?? 0} entrants</strong>
+        </div>
+        {isAdmin && entrants?.editable && <button type="submit">Save field</button>}
+      </header>
+      <div>
+        {entrants?.entrants.map((entrant, index) => {
+          const protectedEntry = entrant.status === "drafting" || entrant.status === "locked";
+          return <label data-selected={entrant.selected} key={`${entrant.user.id}:${entrant.selected}`}>
+            {protectedEntry && <input name="entrantIds" type="hidden" value={entrant.user.id} />}
+            <input
+              defaultChecked={entrant.selected}
+              disabled={!isAdmin || !entrants.editable || protectedEntry}
+              name={protectedEntry ? undefined : "entrantIds"}
+              type="checkbox"
+              value={entrant.user.id}
+            />
+            <b>{entrant.seed ? String(entrant.seed).padStart(2, "0") : String(index + 1).padStart(2, "0")}</b>
+            <span><strong>{entrant.user.displayName}</strong><small>@{entrant.user.username}</small></span>
+            <em>{entrant.status.replaceAll("-", " ")}</em>
+          </label>;
+        })}
+      </div>
+      {message && <p className={message.includes("saved") ? styles.notice : styles.error}>{message}</p>}
+    </form>
+  );
+}
+
+function TournamentBracketPanel({
+  tournament,
+  isAdmin,
+  isEntrant,
+}: {
+  tournament: TournamentView;
+  isAdmin: boolean;
+  isEntrant: boolean;
+}) {
   const queryClient = useQueryClient();
   const [message, setMessage] = useState("");
   const [starting, setStarting] = useState(false);
   const match = useQuery({
     queryKey: ["tournament-match", tournament.id],
     queryFn: async () => {
-      const response = await fetch(`/api/tournaments/${tournament.id}/match`, { cache: "no-store" });
+      const response = await fetch(`/api/tournaments/${tournament.id}/match`, {
+        cache: "no-store",
+      });
       if (response.status === 404) return null;
-      const body = await response.json() as TournamentMatchView | { error?: string };
-      if (!response.ok) throw new Error("error" in body && body.error ? body.error : "The match could not be loaded.");
+      const body = (await response.json()) as
+        | TournamentMatchView
+        | { error?: string };
+      if (!response.ok)
+        throw new Error(
+          "error" in body && body.error
+            ? body.error
+            : "The match could not be loaded.",
+        );
       return body as TournamentMatchView;
     },
     refetchInterval: 1000,
     retry: false,
+    enabled: isEntrant,
+  });
+  const bracket = useQuery({
+    queryKey: ["tournament-bracket", tournament.id],
+    queryFn: () =>
+      api<TournamentBracketView>(`/api/tournaments/${tournament.id}/bracket`),
+    refetchInterval: 1000,
   });
 
   async function startTournament() {
     setMessage("");
     setStarting(true);
     try {
-      const started = await api<TournamentMatchView>(`/api/tournaments/${tournament.id}/start`, { method: "POST" });
-      queryClient.setQueryData(["tournament-match", tournament.id], started);
-      await queryClient.invalidateQueries({ queryKey: ["league", tournament.leagueId] });
+      const started = await api<TournamentBracketView>(
+        `/api/tournaments/${tournament.id}/start`,
+        { method: "POST" },
+      );
+      queryClient.setQueryData(["tournament-bracket", tournament.id], started);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["tournament-match", tournament.id] }),
+        queryClient.invalidateQueries({ queryKey: ["tournament-entrants", tournament.id] }),
+        queryClient.invalidateQueries({ queryKey: ["league", tournament.leagueId] }),
+      ]);
     } catch (caught) {
-      setMessage(caught instanceof Error ? caught.message : "The tournament could not be started.");
+      setMessage(
+        caught instanceof Error
+          ? caught.message
+          : "The tournament could not be started.",
+      );
     } finally {
       setStarting(false);
     }
   }
 
   return (
-    <section className={styles.matchPanel}>
-      <div>
-        <p className={styles.eyebrow}>Event-day match</p>
-        {match.data ? <>
-          <h2>{match.data.status === "completed" ? `${match.data.winner?.displayName ?? "Winner"} won` : `Game ${match.data.gameNumber} vs. ${match.data.opponent.displayName}`}</h2>
-          <p>Series score {match.data.playerWins}–{match.data.opponentWins} · best of {match.data.bestOf}</p>
-        </> : <>
-          <h2>Waiting for locked teams</h2>
-          <p>Once both players lock their teams, the league owner can create the match.</p>
-        </>}
-        {(message || match.error) && <p className={styles.error}>{message || match.error?.message}</p>}
-      </div>
-      {match.data?.status === "active" ? (
-        <Link className={styles.matchAction} to={`/matches/${match.data.battleId}`}>Join battle →</Link>
-      ) : !match.data && isAdmin ? (
-        <button className={styles.matchAction} disabled={starting} onClick={startTournament}>
-          {starting ? "Starting…" : "Start two-player event"}
-        </button>
-      ) : null}
-    </section>
+    <>
+      <section className={styles.matchPanel}>
+        <div>
+          <p className={styles.eyebrow}>Event-day match</p>
+          {bracket.data?.champion ? (
+            <><h2>{bracket.data.champion.displayName} is champion</h2><p>The tournament bracket is complete.</p></>
+          ) : match.data?.status === "active" ? (
+            <><h2>Game {match.data.gameNumber} vs. {match.data.opponent?.displayName}</h2><p>Series score {match.data.playerWins}–{match.data.opponentWins} · best of {match.data.bestOf}</p></>
+          ) : match.data?.status === "waiting" ? (
+            <><h2>Waiting for next opponent</h2><p>Your next bracket match will open automatically.</p></>
+          ) : match.data?.status === "completed" ? (
+            <><h2>{match.data.winner?.displayName ?? "Winner"} won this matchup</h2><p>Check the bracket for the next round.</p></>
+          ) : (
+            <><h2>Waiting for locked teams</h2><p>Every selected entrant must lock a team before the bracket starts.</p></>
+          )}
+          {(message || match.error || bracket.error) && (
+            <p className={styles.error}>{message || match.error?.message || bracket.error?.message}</p>
+          )}
+        </div>
+        {match.data?.status === "active" && match.data.battleId ? (
+          <Link className={styles.matchAction} to={`/matches/${match.data.battleId}`}>Join battle →</Link>
+        ) : !bracket.data?.totalRounds && isAdmin ? (
+          <button className={styles.matchAction} disabled={starting} onClick={startTournament}>
+            {starting ? "Building bracket…" : "Start tournament"}
+          </button>
+        ) : null}
+      </section>
+      {Boolean(bracket.data?.totalRounds) && (
+        <section className={styles.bracketBoard}>
+          <header><span>Single elimination</span><strong>{bracket.data?.champion ? "Final" : "Live bracket"}</strong></header>
+          <div>
+            {bracket.data?.rounds.map((round, roundIndex) => (
+              <section key={roundIndex}>
+                <h3>{roundIndex === bracket.data!.totalRounds - 1 ? "Final" : `Round ${roundIndex + 1}`}</h3>
+                {round.map((series) => (
+                  <article data-status={series.status} key={series.id}>
+                    <p data-winner={series.winner?.id === series.playerOne?.id}><b>{series.playerOne?.displayName ?? "TBD"}</b>{series.winner?.id === series.playerOne?.id && <span>WIN</span>}</p>
+                    <p data-winner={series.winner?.id === series.playerTwo?.id}><b>{series.playerTwo?.displayName ?? "TBD"}</b>{series.winner?.id === series.playerTwo?.id && <span>WIN</span>}</p>
+                    <small>{series.status.replace("-", " ")}</small>
+                  </article>
+                ))}
+              </section>
+            ))}
+          </div>
+        </section>
+      )}
+    </>
   );
 }

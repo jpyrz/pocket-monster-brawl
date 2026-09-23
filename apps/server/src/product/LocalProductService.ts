@@ -14,6 +14,8 @@ import type {
   SaveImportView,
   TeamDraftView,
   TeamDraftWorkspaceView,
+  TournamentBracketView,
+  TournamentEntrantsView,
   TournamentRulesView,
   TournamentMatchView,
   TournamentView,
@@ -44,6 +46,7 @@ export type CreateTournamentInput = {
   teamSize?: unknown
   duplicateSpecies?: unknown
   duplicateHeldItems?: unknown
+  entrantIds?: unknown
 }
 
 export class ProductError extends Error {
@@ -70,6 +73,7 @@ export class LocalProductService {
   private memberships: MembershipRecord[] = []
   private invitations = new Map<string, InvitationRecord>()
   private tournaments = new Map<string, TournamentView>()
+  private tournamentEntrants = new Map<string, Map<string, { seed: number; status: 'selected' | 'drafting' | 'locked' | 'eliminated' | 'champion' }>>()
   private teamStatuses = new Map<string, 'not-started' | 'drafting' | 'submitted'>()
   private saveImports = new Map<string, { userId: string; tournamentId: string | null; data: SaveImportView }>()
   private pokemonSnapshots = new Map<string, BoxPokemonView & { userId: string }>()
@@ -277,7 +281,48 @@ export class LocalProductService {
       id: randomUUID(), leagueId, name, status: 'registration-open', startsAt, teamLockAt, rules, createdAt: now(),
     }
     this.tournaments.set(tournament.id, tournament)
+    const memberIds = this.memberships.filter((entry) => entry.leagueId === leagueId).map((entry) => entry.userId)
+    const requestedIds = Array.isArray(input.entrantIds) ? input.entrantIds : memberIds
+    const entrantIds = [...new Set(requestedIds.filter((id): id is string => typeof id === 'string'))]
+    if (Array.isArray(input.entrantIds) && entrantIds.length < 2) throw new ProductError('Choose at least two tournament entrants.', 400)
+    if (entrantIds.some((id) => !memberIds.includes(id))) throw new ProductError('Tournament entrants must be league members.', 400)
+    this.tournamentEntrants.set(tournament.id, new Map(entrantIds.map((id, index) => [id, { seed: index + 1, status: 'selected' as const }])))
     return tournament
+  }
+
+  getTournamentEntrants(userId: string, tournamentId: string): TournamentEntrantsView {
+    const tournament = this.requireTournamentMember(userId, tournamentId)
+    const selected = this.tournamentEntrants.get(tournamentId) ?? new Map()
+    return {
+      tournamentId,
+      editable: tournament.status === 'planning' || tournament.status === 'registration-open',
+      entrants: this.memberships.filter((entry) => entry.leagueId === tournament.leagueId).map((entry) => {
+        const entrant = selected.get(entry.userId)
+        return {
+          user: publicAccount(this.accounts.get(entry.userId)!), selected: Boolean(entrant),
+          seed: entrant?.seed ?? null, status: entrant?.status ?? 'not-selected',
+        }
+      }),
+    }
+  }
+
+  setTournamentEntrants(actorId: string, tournamentId: string, userIds: readonly string[]): TournamentEntrantsView {
+    const tournament = this.tournaments.get(tournamentId)
+    if (!tournament) throw new ProductError('Tournament not found.', 404)
+    this.requireLeagueAdmin(actorId, tournament.leagueId)
+    if (tournament.status !== 'planning' && tournament.status !== 'registration-open') throw new ProductError('Entrants cannot change after the tournament starts.', 409)
+    const uniqueIds = [...new Set(userIds)]
+    if (uniqueIds.length < 2) throw new ProductError('Choose at least two tournament entrants.', 400)
+    const memberIds = this.memberships.filter((entry) => entry.leagueId === tournament.leagueId).map((entry) => entry.userId)
+    if (uniqueIds.some((id) => !memberIds.includes(id))) throw new ProductError('Tournament entrants must be league members.', 400)
+    const current = this.tournamentEntrants.get(tournamentId) ?? new Map()
+    for (const [id, entrant] of current) {
+      if (!uniqueIds.includes(id) && entrant.status !== 'selected') throw new ProductError('A player with team activity cannot be removed from this tournament.', 409)
+    }
+    this.tournamentEntrants.set(tournamentId, new Map(uniqueIds.map((id, index) => [id, {
+      seed: index + 1, status: current.get(id)?.status ?? 'selected',
+    }])))
+    return this.getTournamentEntrants(actorId, tournamentId)
   }
 
   requireTournamentParticipant(userId: string, tournamentId: string): TournamentView {
@@ -285,6 +330,7 @@ export class LocalProductService {
     if (tournament.status !== 'planning' && tournament.status !== 'registration-open') {
       throw new ProductError('Team registration is closed for this tournament.', 409)
     }
+    if (!this.tournamentEntrants.get(tournamentId)?.has(userId)) throw new ProductError('You are not selected for this tournament.', 403)
     return tournament
   }
 
@@ -299,6 +345,8 @@ export class LocalProductService {
   markTeamDraft(userId: string, tournamentId: string) {
     const tournament = this.requireTournamentParticipant(userId, tournamentId)
     this.teamStatuses.set(`${tournament.leagueId}:${userId}`, 'drafting')
+    const entrant = this.tournamentEntrants.get(tournamentId)?.get(userId)
+    if (entrant) entrant.status = 'drafting'
   }
 
   persistSaveImport(userId: string, tournamentId: string | null, saveImport: SaveImportView) {
@@ -347,7 +395,7 @@ export class LocalProductService {
   }
 
   getBoxTeamDraftWorkspace(userId: string, tournamentId: string): BoxTeamDraftWorkspaceView {
-    const tournament = this.requireTournamentMember(userId, tournamentId)
+    const tournament = this.requireTournamentParticipant(userId, tournamentId)
     const saved = this.boxDrafts.get(`${tournamentId}:${userId}`)
     return {
       tournament,
@@ -371,8 +419,13 @@ export class LocalProductService {
     throw new ProductError('Team locking requires the PostgreSQL product runtime.', 501)
   }
 
-  startTwoPlayerTournament(_actorId: string, _tournamentId: string, _engineVersion: string): TournamentMatchView {
+  startTournament(_actorId: string, _tournamentId: string, _engineVersion: string): TournamentBracketView {
     throw new ProductError('Tournament matches require the PostgreSQL product runtime.', 501)
+  }
+
+  getTournamentBracket(userId: string, tournamentId: string): TournamentBracketView {
+    const tournament = this.requireTournamentMember(userId, tournamentId)
+    return { tournamentId, status: tournament.status, totalRounds: 0, rounds: [], champion: null }
   }
 
   getTournamentMatch(_userId: string, _tournamentId: string): TournamentMatchView | null {

@@ -7,7 +7,7 @@ the profile architecture is intentionally not tied to one generation.
 This repository contains the foundation, a local battle integration spike, the first real
 FireRed save-import slice, and a durable account-to-tournament journey designed for one
 self-hosted LAN server. Players connect from phones or computers on the same Wi-Fi. It does
-**not** currently support internet play or brackets larger than the first two-player series.
+**not** currently support internet play.
 
 ## What works now
 
@@ -23,7 +23,8 @@ self-hosted LAN server. Players connect from phones or computers on the same Wi-
   partner Pokémon chosen from the player's private Box.
 - Replaceable, restart-safe private team drafts during open registration, backed by immutable
   registered-team versions once a player locks for the event.
-- Immutable tournament team locking, a two-player event start, and authenticated match rooms
+- Admin-selected tournament entrants, immutable team locking, generated single-elimination
+  brackets for two or more players, automatic winner advancement, and authenticated match rooms
   that restrict each account to its assigned side and locked save-sourced team.
 - PostgreSQL-journaled battle choices, pinned engine seeds/versions, restart reconstruction,
   best-of series scores, and persisted winners.
@@ -183,7 +184,7 @@ compose.yaml         Complete self-hosted LAN stack
 2. Complete and record an independent field-by-field PKHeX desktop comparison for the pilot save.
 3. Add LAN administration and authentication hardening, including account recovery, rate
    limiting, CSRF protection, and an initial host-admin bootstrap flow.
-4. Expand the verified two-player series into multi-player bracket generation and progression.
+4. Add organizer controls for forfeits, no-shows, bracket corrections, and tournament resets.
 5. Replace battle polling with authenticated realtime updates and add disconnect timers/adjudication.
 
 The renderer spike currently loads the official client assets from
@@ -191,5 +192,5 @@ The renderer spike currently loads the official client assets from
 third-party art/license review are required before a production release. See
 `THIRD_PARTY_NOTICES.md` for the current integration boundary.
 
-LAN discovery/QR setup, sockets, multi-player brackets, local HTTPS, and a packaged desktop
+LAN discovery/QR setup, sockets, local HTTPS, and a packaged desktop
 installer remain unfinished. The Docker Compose stack is the current supported runtime.

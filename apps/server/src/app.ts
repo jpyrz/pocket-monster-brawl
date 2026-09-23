@@ -154,6 +154,19 @@ export function buildApp(options: BuildAppOptions = {}) {
   app.post<{ Params: { leagueId: string }; Body: CreateTournamentInput }>('/api/leagues/:leagueId/tournaments', async (request) =>
     product.createTournament((await currentUser(request)).id, request.params.leagueId, request.body ?? {}))
 
+  app.get<{ Params: { tournamentId: string } }>('/api/tournaments/:tournamentId/entrants', async (request) =>
+    product.getTournamentEntrants((await currentUser(request)).id, request.params.tournamentId))
+
+  app.put<{ Params: { tournamentId: string }; Body: { userIds?: unknown } }>('/api/tournaments/:tournamentId/entrants', async (request) => {
+    const userIds = Array.isArray(request.body?.userIds)
+      ? request.body.userIds.filter((value): value is string => typeof value === 'string')
+      : []
+    return product.setTournamentEntrants((await currentUser(request)).id, request.params.tournamentId, userIds)
+  })
+
+  app.get<{ Params: { tournamentId: string } }>('/api/tournaments/:tournamentId/bracket', async (request) =>
+    product.getTournamentBracket((await currentUser(request)).id, request.params.tournamentId))
+
   app.get<{ Params: { tournamentId: string } }>('/api/tournaments/:tournamentId/team-lock', async (request, reply) => {
     const user = await currentUser(request)
     await product.requireTournamentMember(user.id, request.params.tournamentId)
@@ -179,7 +192,7 @@ export function buildApp(options: BuildAppOptions = {}) {
 
   app.post<{ Params: { tournamentId: string } }>('/api/tournaments/:tournamentId/start', async (request) => {
     const user = await currentUser(request)
-    return product.startTwoPlayerTournament(user.id, request.params.tournamentId, showdownEngineVersion)
+    return product.startTournament(user.id, request.params.tournamentId, showdownEngineVersion)
   })
 
   app.get<{ Params: { tournamentId: string } }>('/api/tournaments/:tournamentId/match', async (request, reply) => {

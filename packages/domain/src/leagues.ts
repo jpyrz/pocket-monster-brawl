@@ -44,6 +44,41 @@ export type TournamentView = {
   readonly createdAt: string
 }
 
+export type TournamentEntrantStatus = 'selected' | 'drafting' | 'locked' | 'eliminated' | 'champion'
+
+export type TournamentEntrantView = {
+  readonly user: AccountView
+  readonly selected: boolean
+  readonly seed: number | null
+  readonly status: TournamentEntrantStatus | 'not-selected'
+}
+
+export type TournamentEntrantsView = {
+  readonly tournamentId: string
+  readonly editable: boolean
+  readonly entrants: readonly TournamentEntrantView[]
+}
+
+export type TournamentBracketSeriesView = {
+  readonly id: string
+  readonly round: number
+  readonly position: number
+  readonly status: 'pending' | 'in-progress' | 'completed'
+  readonly playerOne: AccountView | null
+  readonly playerTwo: AccountView | null
+  readonly winner: AccountView | null
+  readonly battleId: string | null
+  readonly gameNumber: number
+}
+
+export type TournamentBracketView = {
+  readonly tournamentId: string
+  readonly status: TournamentStatus
+  readonly totalRounds: number
+  readonly rounds: readonly (readonly TournamentBracketSeriesView[])[]
+  readonly champion: AccountView | null
+}
+
 export type LockedTeamView = {
   readonly registrationId: string
   readonly tournamentId: string
@@ -53,15 +88,15 @@ export type LockedTeamView = {
 }
 
 export type TournamentMatchView = {
-  readonly battleId: string
+  readonly battleId: string | null
   readonly seriesId: string
   readonly tournamentId: string
-  readonly status: 'active' | 'completed'
+  readonly status: 'waiting' | 'active' | 'completed'
   readonly gameNumber: number
   readonly bestOf: 1 | 3 | 5
   readonly playerWins: number
   readonly opponentWins: number
-  readonly opponent: AccountView
+  readonly opponent: AccountView | null
   readonly winner: AccountView | null
 }
 

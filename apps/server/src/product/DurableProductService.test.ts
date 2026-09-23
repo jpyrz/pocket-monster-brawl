@@ -2,7 +2,7 @@ import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import type { DemoBattleView, SaveImportView, TournamentMatchView } from '@pmb/domain'
+import type { DemoBattleView, SaveImportView, TournamentBracketView } from '@pmb/domain'
 import { buildApp } from '../app.js'
 import { importedMankey } from '../registrations/testFixtures.js'
 import { createTestDurableProductService } from './PgliteTestProductService.js'
@@ -162,6 +162,7 @@ describe('durable product service', () => {
       method: 'POST', url: '/api/auth/register', payload: { username: 'match_red', displayName: 'Match Red', password: 'pallet-town' },
     })
     const redCookie = String(redSignup.headers['set-cookie']).split(';')[0]!
+    const redId = redSignup.json<{ user: { id: string } }>().user.id
     const blueSignup = await firstApp.inject({
       method: 'POST', url: '/api/auth/register', payload: { username: 'match_blue', displayName: 'Match Blue', password: 'viridian-city' },
     })
@@ -193,6 +194,20 @@ describe('durable product service', () => {
       payload: { name: 'Match Cup', bestOf: 1, teamSize: 1 },
     })
     const tournamentId = tournament.json<{ id: string }>().id
+    const selectedEntrants = await firstApp.inject({
+      method: 'PUT', url: `/api/tournaments/${tournamentId}/entrants`, headers: { cookie: redCookie },
+      payload: { userIds: [redId, blueId] },
+    })
+    expect(selectedEntrants.json()).toMatchObject({
+      entrants: [
+        { user: { id: redId }, selected: true, seed: 1 },
+        { user: { id: blueId }, selected: true, seed: 2 },
+        { user: { id: spectatorId }, selected: false, status: 'not-selected' },
+      ],
+    })
+    expect((await firstApp.inject({
+      method: 'GET', url: `/api/tournaments/${tournamentId}/box-team-draft`, headers: { cookie: spectatorCookie },
+    })).statusCode).toBe(403)
 
     for (const [cookie, uploadId] of [
       [redCookie, '10000000-0000-4000-8000-000000000001'],
@@ -220,34 +235,119 @@ describe('durable product service', () => {
     expect((await firstApp.inject({ method: 'POST', url: `/api/tournaments/${tournamentId}/start`, headers: { cookie: blueCookie } })).statusCode).toBe(403)
     const started = await firstApp.inject({ method: 'POST', url: `/api/tournaments/${tournamentId}/start`, headers: { cookie: redCookie } })
     expect(started.statusCode).toBe(200)
-    const match = started.json<TournamentMatchView>()
-    const redView = (await firstApp.inject({ method: 'GET', url: `/api/matches/${match.battleId}`, headers: { cookie: redCookie } })).json<DemoBattleView>()
-    const blueView = (await firstApp.inject({ method: 'GET', url: `/api/matches/${match.battleId}`, headers: { cookie: blueCookie } })).json<DemoBattleView>()
+    const bracket = started.json<TournamentBracketView>()
+    const battleId = bracket.rounds[0]?.[0]?.battleId
+    expect(battleId).toBeTruthy()
+    const redView = (await firstApp.inject({ method: 'GET', url: `/api/matches/${battleId}`, headers: { cookie: redCookie } })).json<DemoBattleView>()
+    const blueView = (await firstApp.inject({ method: 'GET', url: `/api/matches/${battleId}`, headers: { cookie: blueCookie } })).json<DemoBattleView>()
     expect(redView).toMatchObject({ player: 'p1', playerName: 'Match Red', opponentName: 'Match Blue', teamSource: 'registered-save' })
     expect(blueView).toMatchObject({ player: 'p2', playerName: 'Match Blue', opponentName: 'Match Red', teamSource: 'registered-save' })
     expect(redView.protocol).toContain('|player|p1|Match Red|leaf-gen3|')
     expect(redView.protocol).toContain('|player|p2|Match Blue|brendan|')
-    await submitOpenChoice(firstApp, match.battleId, redCookie, redView)
-    await submitOpenChoice(firstApp, match.battleId, blueCookie, blueView)
-    const advanced = await waitForMatchTurn(firstApp, match.battleId, redCookie, 2)
+    await submitOpenChoice(firstApp, battleId!, redCookie, redView)
+    await submitOpenChoice(firstApp, battleId!, blueCookie, blueView)
+    const advanced = await waitForMatchTurn(firstApp, battleId!, redCookie, 2)
     expect(advanced.turn).toBeGreaterThanOrEqual(2)
     await firstApp.close()
 
     const secondService = await createTestDurableProductService(directory)
     const secondApp = buildApp({ productService: secondService })
-    let current = await waitForMatchTurn(secondApp, match.battleId, redCookie, 2)
+    let current = await waitForMatchTurn(secondApp, battleId!, redCookie, 2)
     expect(current.team[0]?.species).toBe('Mankey')
     for (let turn = 0; turn < 50 && current.phase !== 'ended'; turn += 1) {
-      const red = (await secondApp.inject({ method: 'GET', url: `/api/matches/${match.battleId}`, headers: { cookie: redCookie } })).json<DemoBattleView>()
-      const blue = (await secondApp.inject({ method: 'GET', url: `/api/matches/${match.battleId}`, headers: { cookie: blueCookie } })).json<DemoBattleView>()
-      await submitOpenChoice(secondApp, match.battleId, redCookie, red)
-      await submitOpenChoice(secondApp, match.battleId, blueCookie, blue)
-      current = (await secondApp.inject({ method: 'GET', url: `/api/matches/${match.battleId}`, headers: { cookie: redCookie } })).json<DemoBattleView>()
+      const red = (await secondApp.inject({ method: 'GET', url: `/api/matches/${battleId}`, headers: { cookie: redCookie } })).json<DemoBattleView>()
+      const blue = (await secondApp.inject({ method: 'GET', url: `/api/matches/${battleId}`, headers: { cookie: blueCookie } })).json<DemoBattleView>()
+      await submitOpenChoice(secondApp, battleId!, redCookie, red)
+      await submitOpenChoice(secondApp, battleId!, blueCookie, blue)
+      current = (await secondApp.inject({ method: 'GET', url: `/api/matches/${battleId}`, headers: { cookie: redCookie } })).json<DemoBattleView>()
     }
     expect(current.phase).toBe('ended')
     const completed = await secondApp.inject({ method: 'GET', url: `/api/tournaments/${tournamentId}/match`, headers: { cookie: redCookie } })
     expect(completed.json()).toMatchObject({ status: 'completed', gameNumber: 1 })
     await secondApp.close()
+  }, 30_000)
+
+  it('selects entrants and advances a three-player bracket through a bye to a champion', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'pmb-bracket-'))
+    tempDirectories.push(directory)
+    const imported: SaveImportView = {
+      uploadId: '00000000-0000-4000-8000-000000000009', filename: 'Pokemon FireRed.sav',
+      sourceDevice: 'Analogue Pocket', profileId: 'firered-gen3-v1', importedAt: '2026-09-22T12:00:00.000Z',
+      parserVersion: 'test-parser', sha256: 'bracket-hash', size: 131_072, game: 'Pokemon FireRed', gameVersion: 'FR',
+      language: 'English', checksumsValid: true, trainer: { name: 'RED', tid: 1, sid: 2, playTime: '10:00:00' },
+      pokemon: [importedMankey], warnings: [], rawSaveStored: false,
+    }
+    const service = await createTestDurableProductService(directory)
+    const app = buildApp({ productService: service, importSave: async () => imported })
+    const players: Array<{ id: string; cookie: string; name: string }> = []
+    for (const [index, name] of ['Seed One', 'Seed Two', 'Seed Three'].entries()) {
+      const signup = await app.inject({
+        method: 'POST', url: '/api/auth/register',
+        payload: { username: `bracket_${index + 1}`, displayName: name, password: 'indigo-plateau' },
+      })
+      players.push({
+        id: signup.json<{ user: { id: string } }>().user.id,
+        cookie: String(signup.headers['set-cookie']).split(';')[0]!, name,
+      })
+    }
+    const owner = players[0]!
+    const league = await app.inject({ method: 'POST', url: '/api/leagues', headers: { cookie: owner.cookie }, payload: { name: 'Bracket League' } })
+    const leagueId = league.json<{ id: string }>().id
+    for (const player of players.slice(1)) {
+      await app.inject({
+        method: 'POST', url: `/api/leagues/${leagueId}/invitations`, headers: { cookie: owner.cookie }, payload: { userId: player.id },
+      })
+      const inbox = await app.inject({ method: 'GET', url: '/api/invitations', headers: { cookie: player.cookie } })
+      const invitationId = inbox.json<{ invitations: { id: string }[] }>().invitations[0]!.id
+      await app.inject({ method: 'POST', url: `/api/invitations/${invitationId}/accept`, headers: { cookie: player.cookie } })
+    }
+    const tournament = await app.inject({
+      method: 'POST', url: `/api/leagues/${leagueId}/tournaments`, headers: { cookie: owner.cookie },
+      payload: { name: 'Three Player Cup', bestOf: 1, teamSize: 1, entrantIds: players.map((player) => player.id) },
+    })
+    const tournamentId = tournament.json<{ id: string }>().id
+    for (const [index, player] of players.entries()) {
+      const uploadId = `${index + 3}0000000-0000-4000-8000-00000000000${index + 3}`
+      expect((await app.inject({
+        method: 'POST', url: '/api/save-imports/fire-red',
+        headers: { cookie: player.cookie, 'content-type': 'application/octet-stream', 'x-file-name': 'Pokemon%20FireRed.sav', 'x-tournament-id': tournamentId, 'x-upload-id': uploadId },
+        payload: Buffer.alloc(131_072),
+      })).statusCode).toBe(200)
+      expect((await app.inject({
+        method: 'POST', url: `/api/tournaments/${tournamentId}/team-draft`, headers: { cookie: player.cookie },
+        payload: { uploadId, pokemonFingerprints: [importedMankey.fingerprint] },
+      })).statusCode).toBe(200)
+      expect((await app.inject({ method: 'POST', url: `/api/tournaments/${tournamentId}/team-lock`, headers: { cookie: player.cookie } })).statusCode).toBe(200)
+    }
+    const started = await app.inject({ method: 'POST', url: `/api/tournaments/${tournamentId}/start`, headers: { cookie: owner.cookie } })
+    const openingBracket = started.json<TournamentBracketView>()
+    expect(openingBracket).toMatchObject({
+      status: 'in-progress', totalRounds: 2,
+      rounds: [
+        [{ status: 'completed', winner: { id: owner.id } }, { status: 'in-progress' }],
+        [{ status: 'pending', playerOne: { id: owner.id }, playerTwo: null }],
+      ],
+    })
+    const semifinal = openingBracket.rounds[0]![1]!
+    await service.completeBattle(semifinal.battleId!, players[1]!.id, '|win|Seed Two', 'test-engine')
+    const activeFinal = (await app.inject({
+      method: 'GET', url: `/api/tournaments/${tournamentId}/bracket`, headers: { cookie: owner.cookie },
+    })).json<TournamentBracketView>()
+    expect(activeFinal.rounds[1]![0]).toMatchObject({
+      status: 'in-progress', playerOne: { id: owner.id }, playerTwo: { id: players[1]!.id },
+    })
+    const final = activeFinal.rounds[1]![0]!
+    await service.completeBattle(final.battleId!, owner.id, '|win|Seed One', 'test-engine')
+    const completed = (await app.inject({
+      method: 'GET', url: `/api/tournaments/${tournamentId}/bracket`, headers: { cookie: owner.cookie },
+    })).json<TournamentBracketView>()
+    expect(completed).toMatchObject({ status: 'completed', champion: { id: owner.id } })
+    const entrants = (await app.inject({
+      method: 'GET', url: `/api/tournaments/${tournamentId}/entrants`, headers: { cookie: owner.cookie },
+    })).json<{ entrants: Array<{ user: { id: string }; status: string }> }>()
+    expect(entrants.entrants.find((entrant) => entrant.user.id === owner.id)?.status).toBe('champion')
+    expect(entrants.entrants.filter((entrant) => entrant.status === 'eliminated')).toHaveLength(2)
+    await app.close()
   }, 30_000)
 })
 
