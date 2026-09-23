@@ -1,9 +1,24 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" fill="#0a0f16"/>
-  <rect x="58" y="58" width="396" height="396" rx="70" fill="#121b25" stroke="#2c3a46" stroke-width="16"/>
-  <rect x="104" y="105" width="304" height="214" rx="30" fill="#59e2b0" stroke="#071711" stroke-width="14"/>
-  <circle cx="151" cy="377" r="24" fill="#f3edcf" stroke="#071711" stroke-width="12"/>
-  <circle cx="361" cy="377" r="24" fill="#f6c85f" stroke="#071711" stroke-width="12"/>
-  <circle cx="410" cy="350" r="24" fill="#ff6f6a" stroke="#071711" stroke-width="12"/>
-  <text x="256" y="245" fill="#071711" font-family="ui-monospace, Menlo, monospace" font-size="112" font-weight="900" text-anchor="middle">PM</text>
+  <defs>
+    <clipPath id="ball">
+      <circle cx="256" cy="197" r="76"/>
+    </clipPath>
+  </defs>
+  <rect width="512" height="512" fill="#e64b43"/>
+  <rect x="38" y="38" width="436" height="436" rx="102" fill="#e64b43" stroke="#27282d" stroke-width="22"/>
+  <rect x="78" y="72" width="356" height="252" rx="39" fill="#fff8df" stroke="#27282d" stroke-width="18"/>
+  <g clip-path="url(#ball)">
+    <rect x="180" y="121" width="152" height="76" fill="#e64b43"/>
+    <rect x="180" y="197" width="152" height="76" fill="#fff8df"/>
+  </g>
+  <circle cx="256" cy="197" r="76" fill="none" stroke="#27282d" stroke-width="16"/>
+  <path d="M182 197h148" stroke="#27282d" stroke-width="18"/>
+  <circle cx="256" cy="197" r="28" fill="#ffd43b" stroke="#27282d" stroke-width="14"/>
+  <g fill="#27282d">
+    <rect x="148" y="336" width="48" height="104" rx="9"/>
+    <rect x="120" y="364" width="104" height="48" rx="9"/>
+    <circle cx="172" cy="388" r="16" fill="#17181c"/>
+  </g>
+  <circle cx="356" cy="365" r="38" fill="#ffd43b" stroke="#27282d" stroke-width="14"/>
+  <circle cx="304" cy="412" r="27" fill="#9f2d2c" stroke="#27282d" stroke-width="13"/>
 </svg>

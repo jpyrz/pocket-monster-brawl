@@ -166,6 +166,10 @@ describe('durable product service', () => {
       method: 'POST', url: '/api/auth/register', payload: { username: 'match_blue', displayName: 'Match Blue', password: 'viridian-city' },
     })
     const blueCookie = String(blueSignup.headers['set-cookie']).split(';')[0]!
+    await Promise.all([
+      firstApp.inject({ method: 'PATCH', url: '/api/trainer-card', headers: { cookie: redCookie }, payload: { trainerSprite: 'leaf-gen3' } }),
+      firstApp.inject({ method: 'PATCH', url: '/api/trainer-card', headers: { cookie: blueCookie }, payload: { trainerSprite: 'brendan' } }),
+    ])
     const spectatorSignup = await firstApp.inject({
       method: 'POST', url: '/api/auth/register', payload: { username: 'match_green', displayName: 'Match Green', password: 'cerulean-city' },
     })
@@ -221,6 +225,8 @@ describe('durable product service', () => {
     const blueView = (await firstApp.inject({ method: 'GET', url: `/api/matches/${match.battleId}`, headers: { cookie: blueCookie } })).json<DemoBattleView>()
     expect(redView).toMatchObject({ player: 'p1', playerName: 'Match Red', opponentName: 'Match Blue', teamSource: 'registered-save' })
     expect(blueView).toMatchObject({ player: 'p2', playerName: 'Match Blue', opponentName: 'Match Red', teamSource: 'registered-save' })
+    expect(redView.protocol).toContain('|player|p1|Match Red|leaf-gen3|')
+    expect(redView.protocol).toContain('|player|p2|Match Blue|brendan|')
     await submitOpenChoice(firstApp, match.battleId, redCookie, redView)
     await submitOpenChoice(firstApp, match.battleId, blueCookie, blueView)
     const advanced = await waitForMatchTurn(firstApp, match.battleId, redCookie, 2)

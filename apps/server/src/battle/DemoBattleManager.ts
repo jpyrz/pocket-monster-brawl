@@ -6,6 +6,7 @@ import type {
   DemoBattleChoice,
   DemoBattleView,
   DemoPlayerId,
+  TrainerSpriteId,
 } from '@pmb/domain'
 import { validateAndPackDemoTeams } from './demoTeams.js'
 
@@ -48,6 +49,7 @@ export type RegisteredBattleTeam = {
   packedTeam: string
   registrationId: string
   trainerName: string
+  trainerSprite?: TrainerSpriteId
 }
 
 export type BattleManagerOptions = {
@@ -129,8 +131,8 @@ export class DemoBattleManager {
     const p2 = this.registeredTeams.p2
     await playerStreams.omniscient.write([
       `>start ${JSON.stringify({ formatid: 'gen3customgame', seed: this.seed })}`,
-      `>player p1 ${JSON.stringify({ name: p1?.trainerName ?? playerNames.p1, team: p1?.packedTeam ?? teams!.p1 })}`,
-      `>player p2 ${JSON.stringify({ name: p2?.trainerName ?? playerNames.p2, team: p2?.packedTeam ?? teams!.p2 })}`,
+      `>player p1 ${JSON.stringify({ name: p1?.trainerName ?? playerNames.p1, avatar: p1?.trainerSprite, team: p1?.packedTeam ?? teams!.p1 })}`,
+      `>player p2 ${JSON.stringify({ name: p2?.trainerName ?? playerNames.p2, avatar: p2?.trainerSprite, team: p2?.packedTeam ?? teams!.p2 })}`,
     ].join('\n'))
 
     await this.waitUntil(() => Boolean(this.requests.p1 && this.requests.p2))

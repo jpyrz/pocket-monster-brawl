@@ -56,11 +56,13 @@ export class MatchBattleCoordinator {
         packedTeam: setup.playerOne.packedTeam,
         registrationId: setup.playerOne.registrationId,
         trainerName: setup.playerOne.name,
+        trainerSprite: setup.playerOne.trainerSprite,
       },
       p2: {
         packedTeam: setup.playerTwo.packedTeam,
         registrationId: setup.playerTwo.registrationId,
         trainerName: setup.playerTwo.name,
+        trainerSprite: setup.playerTwo.trainerSprite,
       },
     }
     const manager = new DemoBattleManager({ matchId: setup.battleId, seed: setup.seed, teams })

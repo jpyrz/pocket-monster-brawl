@@ -54,8 +54,8 @@ export type MatchBattleSetup = {
   engineVersion: string
   formatId: 'gen3customgame'
   player: DemoPlayerId
-  playerOne: { id: string; name: string; packedTeam: string; registrationId: string }
-  playerTwo: { id: string; name: string; packedTeam: string; registrationId: string }
+  playerOne: { id: string; name: string; trainerSprite: TrainerSpriteId; packedTeam: string; registrationId: string }
+  playerTwo: { id: string; name: string; trainerSprite: TrainerSpriteId; packedTeam: string; registrationId: string }
   decisions: Array<{ userId: string; player: DemoPlayerId; choice: DemoBattleChoice }>
 }
 function iso(value: Date | string) {
@@ -734,15 +734,20 @@ export class DurableProductService {
     const result = await this.db.query<{
       battle_id: string; series_id: string; tournament_id: string; battle_status: string; seed: [number, number, number, number] | string;
       engine_version: string; format_id: string; player_one_id: string; player_two_id: string;
-      p1_name: string; p2_name: string; p1_team: string; p2_team: string; p1_registration: string; p2_registration: string;
+      p1_name: string; p2_name: string; p1_trainer_sprite: TrainerSpriteId; p2_trainer_sprite: TrainerSpriteId;
+      p1_team: string; p2_team: string; p1_registration: string; p2_registration: string;
     }>(
       `select b.id as battle_id, b.series_id, s.tournament_id, b.status as battle_status, b.seed,
        b.engine_version, b.format_id, s.player_one_id, s.player_two_id,
        p1.display_name as p1_name, p2.display_name as p2_name,
+       coalesce(tp1.trainer_sprite, 'red') as p1_trainer_sprite,
+       coalesce(tp2.trainer_sprite, 'red') as p2_trainer_sprite,
        r1.packed_showdown_team as p1_team, r2.packed_showdown_team as p2_team,
        r1.id as p1_registration, r2.id as p2_registration
        from battles b join match_series s on s.id = b.series_id
        join users p1 on p1.id = s.player_one_id join users p2 on p2.id = s.player_two_id
+       left join trainer_profiles tp1 on tp1.user_id = s.player_one_id
+       left join trainer_profiles tp2 on tp2.user_id = s.player_two_id
        join tournament_entries e1 on e1.tournament_id = s.tournament_id and e1.user_id = s.player_one_id
        join tournament_entries e2 on e2.tournament_id = s.tournament_id and e2.user_id = s.player_two_id
        join registered_team_versions r1 on r1.id = e1.registered_team_version_id
@@ -760,8 +765,8 @@ export class DurableProductService {
       status: row.battle_status === 'completed' ? 'completed' : 'active',
       seed: json<[number, number, number, number]>(row.seed), engineVersion: row.engine_version,
       formatId: 'gen3customgame', player: row.player_one_id === userId ? 'p1' : 'p2',
-      playerOne: { id: row.player_one_id, name: row.p1_name, packedTeam: row.p1_team, registrationId: row.p1_registration },
-      playerTwo: { id: row.player_two_id, name: row.p2_name, packedTeam: row.p2_team, registrationId: row.p2_registration },
+      playerOne: { id: row.player_one_id, name: row.p1_name, trainerSprite: row.p1_trainer_sprite, packedTeam: row.p1_team, registrationId: row.p1_registration },
+      playerTwo: { id: row.player_two_id, name: row.p2_name, trainerSprite: row.p2_trainer_sprite, packedTeam: row.p2_team, registrationId: row.p2_registration },
       decisions: decisions.rows.map((decision) => ({
         userId: decision.user_id, player: decision.player_slot,
         choice: { requestId: decision.request_id, idempotencyKey: decision.idempotency_key, type: decision.choice_type, slot: decision.choice_slot },

@@ -8,7 +8,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg', 'apple-touch-icon.png', 'icons.svg'],
+      includeAssets: ['favicon.svg', 'trainer-gear-apple-touch.png', 'icons.svg'],
       manifest: {
         id: '/',
         name: 'Pocket Monster Brawl',
@@ -21,9 +21,9 @@ export default defineConfig({
         background_color: '#e64b43',
         theme_color: '#e64b43',
         icons: [
-          { src: '/pmb-192.png', sizes: '192x192', type: 'image/png' },
-          { src: '/pmb-512.png', sizes: '512x512', type: 'image/png' },
-          { src: '/pmb-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+          { src: '/trainer-gear-192.png', sizes: '192x192', type: 'image/png' },
+          { src: '/trainer-gear-512.png', sizes: '512x512', type: 'image/png' },
+          { src: '/trainer-gear-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
         ],
       },
       workbox: {

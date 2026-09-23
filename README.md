@@ -92,20 +92,22 @@ No separate Node.js, .NET, PKHeX, or PostgreSQL installation is required.
 
 ### 3. Open the app
 
-The launcher prints both addresses:
+The launcher prints these addresses:
 
 - The host opens `http://localhost:3000`.
-- Other players open the printed LAN address, such as `http://192.168.1.50:3000`, while connected
-  to the host's Wi-Fi.
+- On a Mac-hosted game, other players use the stable `.local` address, such as
+  `http://James-MacBook-Pro.local:3000`, while connected to the host's Wi-Fi.
+- The numeric LAN address is also printed as a fallback, but it can change when the router
+  assigns the host a new IP.
 
 Keep Docker running while the app is in use. Internet access is currently required for the
 Showdown battle artwork.
 
-On iPhone, open the LAN address in Safari, use **Share → Add to Home Screen**, and launch
-Pocket Monster Brawl from its icon. If an older shortcut was installed before PWA support,
-delete it and add it again. The standalone Home Screen layout works over the LAN address;
-service-worker caching requires HTTPS and is therefore unavailable on the current plain-HTTP
-phone connection.
+On iPhone, open the printed `.local` address in Safari, use **Share → Add to Home Screen**, and
+launch Pocket Monster Brawl from its icon. If the app was previously installed from a numeric
+IP address, delete that copy and add it once from the `.local` address; it will then keep the
+same URL when the host's IP changes. If `.local` discovery is unavailable on your network, use
+the printed IP fallback instead.
 
 ## Starting, stopping, and updating
 
@@ -141,8 +143,8 @@ docker compose ps        # all three services should be healthy
 docker compose logs app  # show application errors
 ```
 
-If a phone cannot connect, confirm it is on the same Wi-Fi and use the current LAN address
-printed by the start script.
+If a phone cannot connect, confirm it is on the same Wi-Fi. Try the printed `.local` address
+first, then the current IP fallback.
 
 ## Source development
 

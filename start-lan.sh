@@ -8,6 +8,16 @@ fi
 
 docker compose up --build --detach
 
+port="${PMB_PORT:-3000}"
+lan_host="${PMB_HOSTNAME:-}"
+if [ -z "$lan_host" ] && command -v scutil >/dev/null 2>&1; then
+  lan_host="$(scutil --get LocalHostName 2>/dev/null || true)"
+fi
+if [ -z "$lan_host" ] && command -v hostname >/dev/null 2>&1; then
+  lan_host="$(hostname -s 2>/dev/null || true)"
+fi
+lan_host="${lan_host%.local}"
+
 lan_ip=""
 if command -v ipconfig >/dev/null 2>&1; then
   lan_ip="$(ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null || true)"
@@ -17,10 +27,13 @@ fi
 
 echo
 echo "Pocket Monster Brawl is starting."
-echo "Host PC: http://localhost:${PMB_PORT:-3000}"
+echo "Host PC: http://localhost:${port}"
+if [ -n "$lan_host" ]; then
+  echo "Phones on this Wi-Fi (stable): http://${lan_host}.local:${port}"
+fi
 if [ -n "$lan_ip" ]; then
-  echo "Phones on this Wi-Fi: http://${lan_ip}:${PMB_PORT:-3000}"
+  echo "IP fallback: http://${lan_ip}:${port}"
 else
-  echo "Use this computer's Wi-Fi IPv4 address from another device on port ${PMB_PORT:-3000}."
+  echo "If the .local address is unavailable, use this computer's Wi-Fi IPv4 address on port ${port}."
 fi
 echo "Run 'docker compose logs -f app' to watch startup."
