@@ -32,9 +32,9 @@ export function validateSaveFilename(encodedFilename: unknown): string {
     filename.length > 200 ||
     filename !== path.basename(filename) ||
     filename.includes('\\') ||
-    path.extname(filename).toLowerCase() !== '.sav'
+    !['.sav', '.srm'].includes(path.extname(filename).toLowerCase())
   ) {
-    throw new SaveImportError('Choose a raw FireRed .sav file without folders in its name.', 400)
+    throw new SaveImportError('Choose a raw FireRed .sav or .srm file without folders in its name.', 400)
   }
   return filename
 }

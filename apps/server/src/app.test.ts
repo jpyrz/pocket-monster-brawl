@@ -125,7 +125,7 @@ describe('application API', () => {
     expect(response.json().profiles[0].id).toBe('firered-gen3-v1')
   })
 
-  it('validates and forwards a raw FireRed save without storing it', async () => {
+  it('validates and forwards a raw FireRed .srm save without storing it', async () => {
     const imported: SaveImportView = {
       uploadId: 'local-upload',
       filename: 'fire-red.sav',
@@ -160,7 +160,7 @@ describe('application API', () => {
       url: '/api/save-imports/fire-red',
       headers: {
         'content-type': 'application/octet-stream',
-        'x-file-name': encodeURIComponent('Pokemon FireRed.sav'),
+        'x-file-name': encodeURIComponent('Pokemon FireRed.srm'),
         'x-upload-id': requestedUploadId,
       },
       payload: Buffer.alloc(131_072),
@@ -169,7 +169,7 @@ describe('application API', () => {
     expect(response.statusCode).toBe(200)
     expect(receivedBytes).toBe(131_072)
     expect(response.json<SaveImportView>()).toMatchObject({
-      filename: 'Pokemon FireRed.sav',
+      filename: 'Pokemon FireRed.srm',
       uploadId: requestedUploadId,
       sourceDevice: 'Analogue Pocket',
       rawSaveStored: false,

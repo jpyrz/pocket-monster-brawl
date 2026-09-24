@@ -36,8 +36,9 @@ self-hosted LAN server. Players connect from phones or computers on the same Wi-
   HUD, messages, health-bar transitions, and move/faint/switch animations.
 - Private Red/Blue battle views, legal move and switch submission, stale-choice protection,
   forced replacement handling, battle logs, and deterministic local reset.
-- A loopback-only .NET 10 parser pinned to PKHeX.Core 26.8.26, with strict raw FireRed
-  save validation and extraction of party/box Pokémon, moves, stats, IVs, EVs, and legality.
+- A loopback-only .NET 10 parser pinned to PKHeX.Core 26.8.26, with strict raw 128 KiB
+  FireRed `.sav`/`.srm` validation and extraction of party/box Pokémon, moves, stats, IVs,
+  EVs, and legality.
 - An Analogue Pocket import screen with a parsed collection view and Generation III sprites.
 - Server-owned team selection and ordering that resolves selected fingerprints against the
   parsed snapshot, freezes an immutable local registration, and rejects invented or duplicate

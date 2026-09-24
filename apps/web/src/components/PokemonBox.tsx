@@ -17,6 +17,7 @@ import { productApi as api, useSession } from './productApi'
 import styles from './PokemonBox.module.scss'
 
 const fireRedSaveSize = 128 * 1024
+const supportedSaveExtension = /\.(sav|srm)$/i
 const statLabels: ReadonlyArray<[keyof StatBlock, string]> = [
   ['hp', 'HP'], ['attack', 'Atk'], ['defense', 'Def'], ['specialAttack', 'SpA'], ['specialDefense', 'SpD'], ['speed', 'Spe'],
 ]
@@ -160,15 +161,15 @@ function BoxImportPanel({ onImported }: { onImported: (result: SaveImportView) =
     }
   }
 
-  const valid = file?.name.toLowerCase().endsWith('.sav') === true && file.size === fireRedSaveSize
+  const valid = file ? supportedSaveExtension.test(file.name) && file.size === fireRedSaveSize : false
   return (
     <form className={styles.importPanel} onSubmit={submit}>
       <div><span>FR</span><p><strong>FireRed save</strong><small>More game adapters will appear here as they are verified.</small></p></div>
-      <label htmlFor={inputId}><strong>{file ? 'Change save' : 'Choose save'}</strong><small>{file?.name ?? 'Analogue Pocket .sav · 128 KiB'}</small></label>
-      <input accept=".sav,application/octet-stream" id={inputId} onChange={(event) => {
+      <label htmlFor={inputId}><strong>{file ? 'Change save' : 'Choose save'}</strong><small>{file?.name ?? 'Raw .sav or .srm · 128 KiB'}</small></label>
+      <input accept=".sav,.srm,application/octet-stream" id={inputId} onChange={(event) => {
         const next = event.target.files?.[0] ?? null
         setFile(next)
-        setError(next && (!next.name.toLowerCase().endsWith('.sav') || next.size !== fireRedSaveSize) ? 'Choose a raw 128 KiB FireRed .sav file.' : '')
+        setError(next && (!supportedSaveExtension.test(next.name) || next.size !== fireRedSaveSize) ? 'Choose a raw 128 KiB FireRed .sav or .srm file.' : '')
       }} type="file" />
       {error && <p className={styles.error} role="alert">{error}</p>}
       <button disabled={!valid || pending}>{pending ? 'Reading save…' : 'Import to Box'}</button>

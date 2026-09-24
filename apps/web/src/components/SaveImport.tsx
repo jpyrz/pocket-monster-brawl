@@ -5,6 +5,7 @@ import { createClientUuid } from './clientUuid'
 import styles from './SaveImport.module.scss'
 
 const fireRedSaveSize = 128 * 1024
+const supportedSaveExtension = /\.(sav|srm)$/i
 
 type ImportStatus = 'idle' | 'ready' | 'importing' | 'success' | 'error'
 
@@ -207,7 +208,7 @@ export function SaveImport({ tournament }: { tournament?: TournamentView }) {
       boxes: result.pokemon.filter((pokemon) => pokemon.source.kind === 'box').length,
     }
   }, [result])
-  const fileIsValid = file?.name.toLowerCase().endsWith('.sav') === true && file.size === fireRedSaveSize
+  const fileIsValid = file ? supportedSaveExtension.test(file.name) && file.size === fireRedSaveSize : false
 
   function chooseFile(selected: File | null) {
     if (lockedTeam) return
@@ -221,9 +222,9 @@ export function SaveImport({ tournament }: { tournament?: TournamentView }) {
       setStatus('idle')
       return
     }
-    if (!selected.name.toLowerCase().endsWith('.sav')) {
+    if (!supportedSaveExtension.test(selected.name)) {
       setStatus('error')
-      setError('Choose the raw .sav file—not a ROM or an Analogue Pocket save state.')
+      setError('Choose a raw .sav or .srm file—not a ROM or an emulator save state.')
       return
     }
     if (selected.size !== fireRedSaveSize) {
@@ -349,7 +350,7 @@ export function SaveImport({ tournament }: { tournament?: TournamentView }) {
           <p className={styles.eyebrow}>{tournament?.name ?? 'FireRed pilot'}</p>
           <h1>Team setup</h1>
           <p>
-            Load the raw 128 KiB <code>.sav</code> file from your Analogue Pocket.
+            Load a raw 128 KiB <code>.sav</code> or <code>.srm</code> file.
           </p>
         </div>
 
@@ -361,14 +362,14 @@ export function SaveImport({ tournament }: { tournament?: TournamentView }) {
 
           <label className={styles.filePicker} htmlFor={inputId}>
             <span>{file ? 'Change save file' : 'Choose save file'}</span>
-            <small>{file?.name ?? 'Analogue Pocket .sav · exactly 128 KiB'}</small>
+            <small>{file?.name ?? 'Raw .sav or .srm · exactly 128 KiB'}</small>
           </label>
           <input
             className={styles.hiddenInput}
             id={inputId}
             type="file"
             disabled={Boolean(lockedTeam)}
-            accept=".sav,application/octet-stream"
+            accept=".sav,.srm,application/octet-stream"
             onChange={(event) => chooseFile(event.target.files?.[0] ?? null)}
           />
 
